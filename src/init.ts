@@ -1,10 +1,10 @@
-import { Db } from 'mongodb';
-import { HttpRequest } from 'axios-core';
 import axios from 'axios';
+import { HttpRequest } from 'axios-core';
+import { Db } from 'mongodb';
 import { ApplicationContext } from './context';
 import { TubeController } from './controllers/TubeController';
 import { MongoTubeService } from './services/mongo/MongoTubeService';
-import { VideoService, YoutubeClient } from './video-plus'
+import { VideoService, YoutubeClient } from './video-plus';
 
 export function createContext(db: Db): ApplicationContext {
   const tubeService = new MongoTubeService(db);

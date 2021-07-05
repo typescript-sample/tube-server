@@ -22,7 +22,7 @@ export interface VideoService {
   getChannels(ids: string[]): Promise<Channel[]>;
   getChannel(id: string): Promise<Channel>;
   getPlaylists(ids: string[]): Promise<ListResult<Playlist>>;
-  getPlaylist(id: string): Promise<Playlist>
+  getPlaylist(id: string): Promise<Playlist>;
   getChannelPlaylists(channelId: string, max?: number, nextPageToken?: string): Promise<ListResult<Playlist>>;
   getChannelVideos(channelId: string, max?: number, nextPageToken?: string): Promise<ListResult<PlaylistVideo>>;
   getPlaylistVideos(playlistId: string, max?: number, nextPageToken?: string): Promise<ListResult<PlaylistVideo>>;

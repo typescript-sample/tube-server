@@ -1,7 +1,7 @@
 import { Collection, Db, FilterQuery } from 'mongodb';
-import { Channel, Playlist, Video } from '../../video-plus/models';
-import {ChannelSync, PlaylistVideoCollection} from '../../models/ChannelSync'
-import { deleteById, findOne, findWithMap, upsert, upsertMany, patch, update } from './mongo';
+import { PlaylistVideoCollection } from '../../models/ChannelSync';
+import { Channel, ChannelSync, Playlist, Video } from '../../video-plus';
+import { findOne, findWithMap, update, upsert, upsertMany } from './mongo';
 
 export class MongoTubeService {
   private readonly id = 'id';
