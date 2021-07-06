@@ -40,9 +40,8 @@ export async function syncChannel(channelId: string, client: VideoService, repo:
                 const ids = playlists.list.map(item => item.id);
                 const promises = ids.map(item => item !== result.uploads && syncPlaylists(item, client, repo));
                 let count = 0;
-                Promise.all(promises).then(() => {
-                  syncPlaylists(result.uploads, client, repo).then(r => count = count + r);
-                }).then(() => repo.upsertChannelsSync({ id: result.id, timestamp: date, uploads: result.uploads }).then(() => count));
+                Promise.all(promises).then(async() => syncPlaylist(result.uploads, client, repo).then(r => count = count + r)
+                ).then(() => repo.upsertChannelsSync({ id: result.id, timestamp: date, uploads: result.uploads }).then(() => count));
               });
           });
       } else {
@@ -54,7 +53,7 @@ export async function syncChannel(channelId: string, client: VideoService, repo:
       const promises = ids.map(item => syncPlaylists(item, client, repo));
       let count = 0;
       Promise.all(promises).then(() => {
-        syncPlaylists(channelSync.uploads, client, repo).then(r => count = count + r);
+        syncPlaylist(channelSync.uploads, client, repo).then(r => count = count + r);
       }).then(() => {
         channelSync.timestamp = date;
         repo.updateChannelSync(channelSync).then(() => count);
@@ -77,9 +76,6 @@ export async function syncPlaylists(playlistId: string, client: VideoService, re
         await client.getPlaylistVideos(playlistSync.id, 50, nextPageToken).then(playlistVideos => {
           const videoIds = playlistVideos.list.map(item => item.id);
           newVideoIds = newVideoIds.concat(videoIds);
-          client.getVideos(videoIds).then(videos => {
-            repo.upsertVideos(videos);
-          });
           nextPageToken = playlistVideos.nextPageToken;
         });
       }
@@ -100,9 +96,6 @@ export async function syncPlaylists(playlistId: string, client: VideoService, re
         if (playlistSynced.itemCount < playlistVideos.total) {
           const videoIds = playlistVideos.list.map(item => item.id);
           newVideoIds = newVideoIds.concat(videoIds);
-          client.getVideos(videoIds).then(videos => {
-            repo.upsertVideos(videos);
-          });
           nextPageToken = playlistVideos.nextPageToken;
         } else {
           nextPageToken = undefined;
