@@ -21,9 +21,10 @@ app.use(json());
 const port = process.env.PORT;
 const mongoURI = process.env.MONGO_URI;
 const mongoDB = process.env.MONGO_DB;
+const apiKey = process.env.API_KEY;
 
 connectToDb(`${mongoURI}`, `${mongoDB}`).then(db => {
-  const ctx = createContext(db);
+  const ctx = createContext(db, apiKey);
   route(app, ctx);
   http.createServer(app).listen(port, () => {
     console.log('Start server at port ' + port);
