@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PlaylistCollection, VideoService } from 'video-plus';
+import { ChannelSync, PlaylistCollection, Video, VideoService } from 'video-plus';
 import { TubeService } from '../services/TubeService';
 
 export class SyncController {
@@ -33,16 +33,13 @@ export async function syncChannel(channelId: string, client: VideoService, repo:
       const result = await client.getChannel(channelId);
       if (result.id !== result.uploads) {
         repo.upsertChannel(result)
-          .then(() => {
-            repo.upsertChannel(result)
-              .then(async () => {
-                const playlists = await client.getChannelPlaylists(result.id);
-                const ids = playlists.list.map(item => item.id);
-                const promises = ids.map(item => item !== result.uploads && syncChannelPlaylist(item, client, repo));
-                let count = 0;
-                Promise.all(promises).then(async() => syncPlaylist(result.uploads, client, repo).then(r => count = count + r)
-                ).then(() => repo.upsertChannelsSync({ id: result.id, timestamp: date, uploads: result.uploads }).then(() => count));
-              });
+          .then(async () => {
+            const playlists = await client.getChannelPlaylists(result.id);
+            const ids = playlists.list.map(item => item.id);
+            const promises = ids.map(item => item !== result.uploads && syncChannelPlaylist(item, client, repo));
+            let count = 0;
+            Promise.all(promises).then(async() => syncUploads(result.uploads, client, repo).then(r => count = count + r)
+            ).then(() => repo.upsertChannelsSync({ id: result.id, timestamp: date, uploads: result.uploads }).then(() => count));
           });
       } else {
         return -1;
@@ -53,7 +50,7 @@ export async function syncChannel(channelId: string, client: VideoService, repo:
       const promises = ids.map(item => syncChannelPlaylist(item, client, repo));
       let count = 0;
       Promise.all(promises).then(() => {
-        syncPlaylist(channelSync.uploads, client, repo).then(r => count = count + r);
+        syncUploads(channelSync.uploads, client, repo, channelSync).then(r => count = count + r);
       }).then(() => {
         channelSync.timestamp = date;
         repo.updateChannelSync(channelSync).then(() => count);
@@ -107,6 +104,61 @@ export async function syncChannelPlaylist(playlistId: string, client: VideoServi
       await repo.updatePlaylistVideo(playlistVideoCollection);
     }
     return newVideoIds.length;
+  }
+}
+
+export async function syncUploads(uploads: string, client: VideoService, repo: TubeService, channelSync?: ChannelSync) {
+  const uploadsSynced = await repo.loadPlaylistVideo(uploads);
+  let nextPageToken = '';
+  let playlistVideoCollection: PlaylistCollection = {
+    id: '',
+    videos: []
+  };
+  if (!uploadsSynced) {
+    let newVideoIds = [];
+    const uploadSync = await client.getPlaylist(uploads);
+    repo.upsertPlaylist(uploadSync).then(async () => {
+      while (nextPageToken !== undefined) {
+        await client.getPlaylistVideos(uploadSync.id, 50, nextPageToken).then((resultVideos) => {
+          const videoIds = resultVideos.list.map(item => item.id);
+          newVideoIds = newVideoIds.concat(videoIds);
+          client.getVideos(videoIds).then(videos => {
+            repo.upsertVideos(videos);
+          });
+          nextPageToken = resultVideos.nextPageToken;
+        });
+      }
+      if (!nextPageToken) {
+        playlistVideoCollection.id = uploadSync.id;
+        playlistVideoCollection.videos = newVideoIds;
+        await repo.upsertPlaylistVideo(playlistVideoCollection);
+        return newVideoIds.length;
+      }
+    });
+  } else {
+    let newVideoIds = uploadsSynced.videos;
+    while (nextPageToken !== undefined) {
+      await client.getPlaylistVideos(uploadsSynced.id, 50, nextPageToken).then((resultVideos) => {
+        resultVideos.list.forEach(item => {
+          if (Date.parse(channelSync.timestamp.toString()) < Date.parse(item.publishedAt.toString())) {
+            const videoIds = resultVideos.list.map(item => item.id);
+            newVideoIds = newVideoIds.concat(videoIds);
+            client.getVideos(videoIds).then(videos => {
+              repo.upsertVideos(videos);
+            });
+            nextPageToken = resultVideos.nextPageToken;
+          } else {
+            nextPageToken = undefined;
+          }
+        })
+      });
+    }
+    if (!nextPageToken) {
+      playlistVideoCollection.id = uploadsSynced.id;
+      playlistVideoCollection.videos = newVideoIds;
+      await repo.updatePlaylistVideo(playlistVideoCollection);
+      return newVideoIds.length;
+    }
   }
 }
 
