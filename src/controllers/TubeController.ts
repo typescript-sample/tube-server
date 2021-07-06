@@ -3,26 +3,26 @@ import { TubeService } from '../services/TubeService';
 
 export class TubeController {
   constructor(private tubeService: TubeService) {
-    this.allChannels = this.allChannels.bind(this);
-    this.allVideos = this.allVideos.bind(this);
-    this.loadChannel = this.loadChannel.bind(this);
-    this.loadPlaylistVideo = this.loadPlaylistVideo.bind(this);
-    this.loadChannelsSync = this.loadChannelsSync.bind(this);
+    this.getAllChannels = this.getAllChannels.bind(this);
+    this.getAllVideos = this.getAllVideos.bind(this);
+    this.getChannel = this.getChannel.bind(this);
+    this.getPlaylistVideo = this.getPlaylistVideo.bind(this);
+    this.getChannelsSync = this.getChannelsSync.bind(this);
   }
-  allChannels(req: Request, res: Response) {
-    this.tubeService.allChannels()
+  getAllChannels(req: Request, res: Response) {
+    this.tubeService.getAllChannels()
       .then(channels => res.status(200).json(channels), err => res.status(500).send(err));
   }
-  allVideos(req: Request, res: Response) {
-    this.tubeService.allVideos()
+  getAllVideos(req: Request, res: Response) {
+    this.tubeService.getAllVideos()
       .then(videos => res.status(200).json(videos), err => res.status(500).send(err));
   }
-  loadChannel(req: Request, res: Response) {
+  getChannel(req: Request, res: Response) {
     const { id } = req.params;
     if (!id || id.length === 0) {
       return res.status(400).send('Id cannot be empty');
     }
-    this.tubeService.loadChannel(id)
+    this.tubeService.getChannel(id)
       .then(channel => {
         if (channel) {
           res.status(200).json(channel);
@@ -31,12 +31,12 @@ export class TubeController {
         }
       }).catch(err => res.status(500).send(err));
   }
-  loadChannelsSync(req: Request, res: Response) {
+  getChannelsSync(req: Request, res: Response) {
     const { id } = req.params;
     if (!id || id.length === 0) {
       return res.status(400).send('Id cannot be empty');
     }
-    this.tubeService.loadChannelsSync(id)
+    this.tubeService.getChannelSync(id)
       .then(channel => {
         if (channel) {
           res.status(200).json(channel);
@@ -45,12 +45,12 @@ export class TubeController {
         }
       }).catch(err => res.status(500).send(err));
   }
-  loadPlaylistVideo(req: Request, res: Response) {
+  getPlaylistVideo(req: Request, res: Response) {
     const { id } = req.params;
     if (!id || id.length === 0) {
       return res.status(400).send('Id cannot be empty');
     }
-    this.tubeService.loadVideo(id)
+    this.tubeService.getVideo(id)
       .then(video => {
         if (video) {
           res.status(200).json(video);
