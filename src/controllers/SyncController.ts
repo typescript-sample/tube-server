@@ -38,7 +38,7 @@ export async function syncChannel(channelId: string, client: VideoService, repo:
               .then(async () => {
                 const playlists = await client.getChannelPlaylists(result.id);
                 const ids = playlists.list.map(item => item.id);
-                const promises = ids.map(item => item !== result.uploads && syncPlaylists(item, client, repo));
+                const promises = ids.map(item => item !== result.uploads && syncChannelPlaylist(item, client, repo));
                 let count = 0;
                 Promise.all(promises).then(async() => syncPlaylist(result.uploads, client, repo).then(r => count = count + r)
                 ).then(() => repo.upsertChannelsSync({ id: result.id, timestamp: date, uploads: result.uploads }).then(() => count));
@@ -50,7 +50,7 @@ export async function syncChannel(channelId: string, client: VideoService, repo:
     } else {
       const playlists = await client.getChannelPlaylists(channelId);
       const ids = playlists.list.map(item => item.id);
-      const promises = ids.map(item => syncPlaylists(item, client, repo));
+      const promises = ids.map(item => syncChannelPlaylist(item, client, repo));
       let count = 0;
       Promise.all(promises).then(() => {
         syncPlaylist(channelSync.uploads, client, repo).then(r => count = count + r);
@@ -61,7 +61,7 @@ export async function syncChannel(channelId: string, client: VideoService, repo:
     }
 }
 
-export async function syncPlaylists(playlistId: string, client: VideoService, repo: TubeService): Promise<number> {
+export async function syncChannelPlaylist(playlistId: string, client: VideoService, repo: TubeService): Promise<number> {
   const playlistSynced = await repo.loadPlaylist(playlistId);
   let nextPageToken = '';
   if (!playlistSynced) {
