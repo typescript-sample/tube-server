@@ -1,5 +1,4 @@
-import { PlaylistVideoCollection} from '../models/ChannelSync';
-import { Channel, ChannelSync, Playlist, PlaylistVideo, Video } from '../video-plus';
+import { Channel, ChannelSync, Playlist, PlaylistCollection, PlaylistVideo, Video } from '../video-plus';
 
 export interface TubeService {
   upsertChannel(channel: Channel): Promise<number>;
@@ -14,7 +13,7 @@ export interface TubeService {
   loadPlaylist(playlistId: string): Promise<Playlist>;
   loadVideo(videoId: string): Promise<Video>;
   loadChannelsSync(channelId: string): Promise<ChannelSync>;
-  loadPlaylistVideo(playlistId: string): Promise<PlaylistVideoCollection>;
+  loadPlaylistVideo(playlistId: string): Promise<PlaylistCollection>;
   updateChannelSync(channel: ChannelSync): Promise<number>;
-  updatePlaylistVideo(playlistVideo: PlaylistVideoCollection): Promise<number>;
+  updatePlaylistVideo(playlistVideo: PlaylistCollection): Promise<number>;
 }

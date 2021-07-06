@@ -9,7 +9,7 @@ export interface ChannelSync {
   timestamp?: Date;
 }
 export interface PlaylistCollection {
-  playlistId: string;
+  id: string;
   videos: string[];
 }
 export interface SyncService {

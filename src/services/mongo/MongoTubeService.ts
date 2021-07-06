@@ -1,6 +1,5 @@
 import { Collection, Db, FilterQuery } from 'mongodb';
-import { PlaylistVideoCollection } from '../../models/ChannelSync';
-import { Channel, ChannelSync, Playlist, Video } from '../../video-plus';
+import { Channel, ChannelSync, Playlist, PlaylistCollection, Video } from '../../video-plus';
 import { findOne, findWithMap, update, upsert, upsertMany } from './mongo';
 
 export class MongoTubeService {
@@ -43,9 +42,9 @@ export class MongoTubeService {
     const query: FilterQuery<any> = { _id:  videoId};
     return findOne<Video>(this.videosCollection, query, this.id);
   }
-  loadPlaylistVideo(playlistId: string): Promise<PlaylistVideoCollection> {
+  loadPlaylistVideo(playlistId: string): Promise<PlaylistCollection> {
     const query: FilterQuery<any> = { _id:  playlistId};
-    return findOne<PlaylistVideoCollection>(this.playlistVideoCollection, query, this.id);
+    return findOne<PlaylistCollection>(this.playlistVideoCollection, query, this.id);
   }
   upsertChannelsSync(channel: ChannelSync): Promise<number> {
     return upsert(this.channelSyncCollection, channel, this.id);
@@ -62,10 +61,10 @@ export class MongoTubeService {
   updateChannelSync(channel: ChannelSync): Promise<number> {
     return update(this.channelSyncCollection, channel, this.id);
   }
-  updatePlaylistVideo(playlistVideo: PlaylistVideoCollection): Promise<number> {
+  updatePlaylistVideo(playlistVideo: PlaylistCollection): Promise<number> {
     return update(this.playlistVideoCollection, playlistVideo, this.id);
   }
-  upsertPlaylistVideo(playlistVideo: PlaylistVideoCollection): Promise<number> {
+  upsertPlaylistVideo(playlistVideo: PlaylistCollection): Promise<number> {
     return upsert(this.playlistVideoCollection, playlistVideo, this.id);
   }
 }
