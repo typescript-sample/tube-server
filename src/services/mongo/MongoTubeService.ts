@@ -50,7 +50,6 @@ export class MongoTubeService {
     return upsert(this.channelSyncCollection, channel, this.id);
   }
   upsertChannel(channel: Channel): Promise<number> {
-    console.log('is called');
     return upsert(this.channelsCollection, channel, this.id);
   }
   upsertPlaylist(playlist: Playlist): Promise<number> {
