@@ -1,4 +1,4 @@
-import { Channel, ChannelSync, Video } from '../video-plus';
+import { Channel, ChannelSync, PlaylistCollection, Video } from "../video-plus";
 
 export interface TubeService {
   getChannelSync(channelId: string): Promise<ChannelSync>;
@@ -6,4 +6,6 @@ export interface TubeService {
   getAllVideos(): Promise<Video[]>;
   getChannel(channelId: string): Promise<Channel>;
   getVideo(videoId: string): Promise<Video>;
+  getPlaylistVideo(id: string): Promise<PlaylistCollection>;
+  getVideoByPlaylistId(videoIds: string[]): Promise<Video[]>;
 }

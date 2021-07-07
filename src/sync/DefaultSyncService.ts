@@ -15,11 +15,11 @@ export interface VideoRepository {
   savePlaylist(playlist: Playlist): Promise<number>;
   saveChannelSync(channel: ChannelSync): Promise<number>;
   saveVideos(videos: Video[]): Promise<number>;
-  savePlaylistVideo(playlistVideo: PlaylistVideo): Promise<number>;
   getPlaylist(playlistId: string): Promise<Playlist>;
-  getPlaylistVideo(playlistId: string): Promise<PlaylistCollection>;
-  updateChannelSync(channel: ChannelSync): Promise<number>;
-  updatePlaylistVideo(playlistVideo: PlaylistCollection): Promise<number>;
+  getPlaylistVideo(playlistId: string): Promise<PlaylistCollection>; // used in sync Uploads
+  getPlaylistVideos(playlistId: string): Promise<string[]>;
+  savePlaylistVideos?(playlistId: string, videos: string[]): Promise<number>;
+  getVideoIds(id: string[]): Promise<string[]>;
 }
 
 export interface VideoClient {
@@ -63,34 +63,34 @@ export async function syncChannel(
     const result = await client.getChannel(channelId);
     if (result.id !== result.uploads && result.uploads !== "") {
       repo.saveChannel(result).then(async () => {
-        syncUploads(result.uploads, client, repo)
-          .then((r) => {
-            if (r > 0) {
-              count += r;
-              client.getChannelPlaylists(result.id).then((playlists) => {
-                const ids = playlists.list.map(
-                  (item) => item.id !== result.uploads && item.id
-                );
-                const promises = ids.map(
-                  (item) =>
-                    item !== result.uploads &&
-                    syncChannelPlaylist(item, client, repo)
-                );
-                return Promise.all(promises).then(() => count);
-              });
-            } else {
-              return count;
-            }
-          })
-          .then(() =>
-            repo
-              .saveChannelSync({
-                id: result.id,
-                timestamp: date,
-                uploads: result.uploads,
-              })
-              .then(() => count)
-          );
+        const r = await syncUploads(result.uploads, client, repo);
+        if (r > 0) {
+          count += r;
+          client.getChannelPlaylists(result.id).then(async (playlists) => {
+            const ids = playlists.list.map(
+              (item) => item.id !== result.uploads && item.id
+            );
+            const promises = ids.map(
+              async (item) =>
+                item !== result.uploads &&
+                (await syncChannelPlaylist(item, client, repo))
+            );
+            Promise.all(promises).then(() =>
+              repo
+                .saveChannelSync({
+                  id: result.id,
+                  timestamp: date,
+                  uploads: result.uploads,
+                })
+                .then(() => count)
+            );
+            return count;
+          });
+        } else {
+          if (r !== undefined) {
+            return count;
+          }
+        }
       });
     } else {
       return -1;
@@ -108,7 +108,7 @@ export async function syncChannel(
           );
           Promise.all(promises).then(() => {
             channelSync.timestamp = date;
-            repo.updateChannelSync(channelSync).then(() => count);
+            repo.saveChannelSync(channelSync).then(() => count);
           });
         });
       } else {
@@ -117,7 +117,6 @@ export async function syncChannel(
     });
   }
 }
-
 export async function syncChannelPlaylist(
   playlistId: string,
   client: VideoClient,
@@ -125,12 +124,8 @@ export async function syncChannelPlaylist(
 ): Promise<number> {
   const playlistSynced = await repo.getPlaylist(playlistId);
   let nextPageToken = "";
+  let newVideoIds = [];
   if (!playlistSynced) {
-    const playlistVideoCollection: PlaylistCollection = {
-      id: "",
-      videos: [],
-    };
-    let newVideoIds = [];
     const playlistSync = await client.getPlaylist(playlistId);
     repo
       .savePlaylist(playlistSync)
@@ -145,20 +140,26 @@ export async function syncChannelPlaylist(
             });
         }
         if (!nextPageToken) {
-          playlistVideoCollection.id = playlistSync.id;
-          playlistVideoCollection.videos = newVideoIds;
-          await repo.savePlaylistVideo(playlistVideoCollection);
-          return newVideoIds.length;
+          const ids = await repo.getVideoIds(newVideoIds);
+          const newIds = notIn(newVideoIds, ids);
+          if (newIds.length > 0) {
+            const videos = await client.getVideos(newIds);
+            const count = await repo.saveVideos(videos);
+            const l = await repo.savePlaylistVideos(
+              playlistSynced.id,
+              newVideoIds
+            );
+            return count + l;
+          } else {
+            await repo.savePlaylistVideos(playlistSynced.id, newVideoIds);
+            return newVideoIds.length;
+          }
         } else {
           return newVideoIds.length;
         }
       })
       .catch((err) => console.log(err));
   } else {
-    let newVideoIds = [];
-    const playlistVideoCollection = await repo.getPlaylistVideo(
-      playlistSynced.id
-    );
     while (nextPageToken !== undefined) {
       await client
         .getPlaylistVideos(playlistSynced.id, 50, nextPageToken)
@@ -173,10 +174,20 @@ export async function syncChannelPlaylist(
         });
     }
     if (!nextPageToken) {
-      playlistVideoCollection.videos = newVideoIds;
-      await repo.updatePlaylistVideo(playlistVideoCollection);
+      const ids = await repo.getVideoIds(newVideoIds);
+      const newIds = notIn(newVideoIds, ids);
+      if (newIds.length > 0) {
+        const videos = await client.getVideos(newIds);
+        const count = await repo.saveVideos(videos);
+        const l = await repo.savePlaylistVideos(playlistSynced.id, newVideoIds);
+        return count + l;
+      } else {
+        await repo.savePlaylistVideos(playlistSynced.id, newVideoIds);
+        return newVideoIds.length;
+      }
+    } else {
+      return newVideoIds.length;
     }
-    return newVideoIds.length;
   }
 }
 
@@ -210,9 +221,6 @@ export async function syncUploads(
             });
         }
         if (!nextPageToken) {
-          playlistVideoCollection.id = uploadSync.id;
-          playlistVideoCollection.videos = newVideoIds;
-          await repo.savePlaylistVideo(playlistVideoCollection);
           return newVideoIds.length;
         }
       });
@@ -244,9 +252,7 @@ export async function syncUploads(
         });
     }
     if (!nextPageToken) {
-      playlistVideoCollection.id = uploadsSynced.id;
-      playlistVideoCollection.videos = newVideoIds;
-      await repo.updatePlaylistVideo(playlistVideoCollection);
+      await repo.savePlaylistVideos(uploadsSynced.id, newVideoIds);
       if (newVideoIds.length === oldVideoIds.length) {
         return 0;
       } else {
@@ -263,10 +269,6 @@ export async function syncPlaylist(
 ): Promise<number> {
   const playlistSynced = await repo.getPlaylist(playlistId);
   let nextPageToken = "";
-  let playlistVideoCollection: PlaylistCollection = {
-    id: "",
-    videos: [],
-  };
   if (!playlistSynced) {
     let newVideoIds = [];
     const playlistSync = await client.getPlaylist(playlistId);
@@ -284,17 +286,12 @@ export async function syncPlaylist(
           });
       }
       if (!nextPageToken) {
-        playlistVideoCollection.id = playlistSync.id;
-        playlistVideoCollection.videos = newVideoIds;
-        await repo.savePlaylistVideo(playlistVideoCollection);
+        await repo.savePlaylistVideos(playlistSync.id, newVideoIds);
         return newVideoIds.length;
       }
     });
   } else {
     let newVideoIds = [];
-    await repo.getPlaylistVideo(playlistSynced.id).then((result) => {
-      playlistVideoCollection = result;
-    });
     while (nextPageToken !== undefined) {
       await client
         .getPlaylistVideos(playlistSynced.id, 50, nextPageToken)
@@ -312,9 +309,39 @@ export async function syncPlaylist(
         });
     }
     if (!nextPageToken) {
-      playlistVideoCollection.videos = newVideoIds;
-      await repo.updatePlaylistVideo(playlistVideoCollection);
+      await repo.savePlaylistVideos(playlistSynced.id, newVideoIds);
       return newVideoIds.length;
     }
   }
+}
+
+export function notIn(ids: string[], subIds: string[]) {
+  const newIds: string[] = [];
+  for (const id of ids) {
+    const i = binarySearch(subIds, id);
+    if (i < 0) {
+      newIds.push(id);
+    }
+  }
+  return newIds;
+}
+export function binarySearch<T>(items: T[], value: T) {
+  let startIndex = 0;
+  let stopIndex = items.length - 1;
+  let middle = Math.floor((stopIndex + startIndex) / 2);
+
+  while (items[middle] !== value && startIndex < stopIndex) {
+    // adjust search area
+    if (value < items[middle]) {
+      stopIndex = middle - 1;
+    } else if (value > items[middle]) {
+      startIndex = middle + 1;
+    }
+
+    // recalculate middle
+    middle = Math.floor((stopIndex + startIndex) / 2);
+  }
+
+  // make sure it's the right value
+  return items[middle] !== value ? -1 : middle;
 }
