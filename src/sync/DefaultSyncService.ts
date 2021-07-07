@@ -60,38 +60,37 @@ export async function syncChannel(
   let count = 0;
   const channelSync = await repo.getChannelSync(channelId);
   if (!channelSync) {
-    const result = await client.getChannel(channelId);
-    if (result.id !== result.uploads && result.uploads !== "") {
-      repo.saveChannel(result).then(async () => {
-        const r = await syncUploads(result.uploads, client, repo);
-        if (r > 0) {
-          count += r;
-          client.getChannelPlaylists(result.id).then(async (playlists) => {
-            const ids = playlists.list.map(
-              (item) => item.id !== result.uploads && item.id
-            );
-            const promises = ids.map(
-              async (item) =>
-                item !== result.uploads &&
-                (await syncChannelPlaylist(item, client, repo))
-            );
-            Promise.all(promises).then(() =>
-              repo
-                .saveChannelSync({
-                  id: result.id,
-                  timestamp: date,
-                  uploads: result.uploads,
-                })
-                .then(() => count)
-            );
-            return count;
-          });
-        } else {
-          if (r !== undefined) {
-            return count;
-          }
+    const channel = await client.getChannel(channelId);
+    if (channel.uploads !== "") {
+      const r = await syncUploads(channel.uploads, client, repo);
+      channel.count = r;
+      if (r > 0) {
+        count += r;
+        const playlists = await client.getChannelPlaylists(channel.id);
+        const ids = playlists.list.map(
+          (item) => item.id !== channel.uploads && item.id
+        );
+        const promises = ids.map(
+          async (item) =>
+            item !== channel.uploads &&
+            (await syncChannelPlaylist(item, client, repo))
+        );
+        Promise.all(promises).then(() =>
+          repo
+            .saveChannelSync({
+              id: channel.id,
+              timestamp: date,
+              uploads: channel.uploads,
+            })
+            .then(() => count)
+        );
+        return count;
+      } else {
+        if (r !== undefined) {
+          return count;
         }
-      });
+      }
+      repo.saveChannel(channel).then(async () => {});
     } else {
       return -1;
     }
@@ -197,69 +196,51 @@ export async function syncUploads(
   repo: VideoRepository,
   channelSync?: ChannelSync
 ) {
-  const uploadsSynced = await repo.getPlaylistVideo(uploads);
   let nextPageToken = "";
   const playlistVideoCollection: PlaylistCollection = {
     id: "",
     videos: [],
   };
-  if (!uploadsSynced) {
-    let newVideoIds = [];
-    const uploadSync = await client.getPlaylist(uploads);
-    if (uploadSync) {
-      repo.savePlaylist(uploadSync).then(async () => {
-        while (nextPageToken !== undefined) {
-          await client
-            .getPlaylistVideos(uploadSync.id, 50, nextPageToken)
-            .then((resultVideos) => {
-              const videoIds = resultVideos.list.map((item) => item.id);
-              newVideoIds = newVideoIds.concat(videoIds);
-              client.getVideos(videoIds).then(async (videos) => {
-                await repo.saveVideos(videos);
-              });
-              nextPageToken = resultVideos.nextPageToken;
-            });
-        }
-        if (!nextPageToken) {
-          return newVideoIds.length;
-        }
-      });
+  let count = 0;
+  while (nextPageToken !== undefined) {
+    console.log("start white", count);
+    const resultVideos = await client.getPlaylistVideos(
+      uploads,
+      50,
+      nextPageToken
+    );
+    const array = getNewVideos(resultVideos.list, channelSync);
+    if (resultVideos.list.length > array.length) {
+      nextPageToken = undefined;
     } else {
-      return 0;
+      nextPageToken = resultVideos.nextPageToken;
     }
-  } else {
-    const oldVideoIds = uploadsSynced.videos;
-    let newVideoIds = uploadsSynced.videos;
-    while (nextPageToken !== undefined) {
-      await client
-        .getPlaylistVideos(uploadsSynced.id, 50, nextPageToken)
-        .then((resultVideos) => {
-          resultVideos.list.forEach((item) => {
-            if (
-              Date.parse(channelSync.timestamp.toString()) <
-              Date.parse(item.publishedAt.toString())
-            ) {
-              const videoIds = resultVideos.list.map((i) => i.id);
-              newVideoIds = newVideoIds.concat(videoIds);
-              client.getVideos(videoIds).then(async (videos) => {
-                await repo.saveVideos(videos);
-              });
-              nextPageToken = resultVideos.nextPageToken;
-            } else {
-              nextPageToken = undefined;
-            }
-          });
-        });
-    }
-    if (!nextPageToken) {
-      await repo.savePlaylistVideos(uploadsSynced.id, newVideoIds);
-      if (newVideoIds.length === oldVideoIds.length) {
-        return 0;
-      } else {
-        return newVideoIds.length;
-      }
+    const videoIds = array.map((item) => item.id);
+    const videos = await client.getVideos(videoIds);
+    await repo.saveVideos(videos);
+    count = count + videos.length;
+    console.log("count: ", count);
+  }
+  return count;
+}
+
+export function getNewVideos(
+  playlistVideos: PlaylistVideo[],
+  channelSync: ChannelSync
+) {
+  if (!channelSync) {
+    return playlistVideos;
+  }
+  const timestamp = channelSync.timestamp.getTime();
+  let array: PlaylistVideo[] = [];
+  for (let i of playlistVideos) {
+    if (i.publishedAt.getTime() > timestamp) {
+      array.push(i);
+    } else {
+      return array;
     }
   }
+  return array;
 }
 
 export async function syncPlaylist(
