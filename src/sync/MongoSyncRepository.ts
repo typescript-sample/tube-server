@@ -1,28 +1,30 @@
-import { Collection, Db, FilterQuery } from "mongodb";
+import { Collection, Db, FilterQuery } from 'mongodb';
 import {
   Channel,
   ChannelSync,
   Playlist,
   PlaylistCollection,
   PlaylistVideo,
+  SyncRepository,
   Video,
-} from "../video-plus";
-import { findOne, findWithMap, update, upsert, upsertMany } from "./mongo";
+} from '../video-plus';
+import { findOne, findWithMap, update, upsert, upsertMany } from './mongo';
 
-export class MongoVideoRepository {
-  private readonly id = "id";
+export class MongoVideoRepository implements SyncRepository {
+  private readonly id = 'id';
   private readonly channelsCollection: Collection;
   private readonly videosCollection: Collection;
   private readonly channelSyncCollection: Collection;
   private readonly playlistsCollection: Collection;
   private readonly playlistVideoCollection: Collection;
   constructor(db: Db) {
-    this.channelsCollection = db.collection("channel");
-    this.channelSyncCollection = db.collection("channelSync");
-    this.videosCollection = db.collection("video");
-    this.playlistsCollection = db.collection("playlist");
-    this.playlistVideoCollection = db.collection("playlistVideo");
+    this.channelsCollection = db.collection('channel');
+    this.channelSyncCollection = db.collection('channelSync');
+    this.videosCollection = db.collection('video');
+    this.playlistsCollection = db.collection('playlist');
+    this.playlistVideoCollection = db.collection('playlistVideo');
     this.saveVideos = this.saveVideos.bind(this);
+    this.savePlaylists = this.savePlaylists.bind(this);
   }
   getChannelSync(channelId: string): Promise<ChannelSync> {
     const query: FilterQuery<any> = { _id: channelId };
@@ -33,6 +35,9 @@ export class MongoVideoRepository {
   }
   savePlaylist(playlist: Playlist): Promise<number> {
     return upsert(this.playlistsCollection, playlist, this.id);
+  }
+  savePlaylists(playlists: Playlist[]): Promise<number> {
+    return upsertMany(this.playlistsCollection, playlists, this.id);
   }
   saveChannelSync(channel: ChannelSync): Promise<number> {
     return upsert(this.channelSyncCollection, channel, this.id);

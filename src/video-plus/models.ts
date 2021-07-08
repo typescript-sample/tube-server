@@ -79,11 +79,13 @@ export interface Channel extends ItemInfo {
   likes?: string;
   favorites?: string;
   uploads?: string;
+  timestamp?: Date;
   count?: number;
   itemCount?: number;
   playlistCount?: number;
   playlistItemCount?: number;
-  timestamp?: Date;
+  playlistVideoCount?: number;
+  playlistVideoItemCount?: number;
 }
 export interface Playlist extends ItemInfo, BigThumbnail {
   count?: number;

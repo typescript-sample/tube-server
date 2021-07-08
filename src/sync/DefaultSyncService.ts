@@ -7,7 +7,7 @@ import {
   SyncRepository,
   SyncService,
   Video,
-} from "../video-plus";
+} from '../video-plus';
 
 export class DefaultSyncService implements SyncService {
   constructor(private client: SyncClient, private repo: SyncRepository) {
@@ -65,55 +65,35 @@ export async function syncChannel(
     return res;
   });
 }
-export function checkAndSyncUploads(
-  channel: Channel,
-  channelSync: ChannelSync,
-  client: SyncClient,
-  repo: SyncRepository
-): Promise<number> {
+export function checkAndSyncUploads(channel: Channel, channelSync: ChannelSync, client: SyncClient, repo: SyncRepository): Promise<number> {
   if (!channel.uploads || channel.uploads.length === 0) {
     return Promise.resolve(0);
   } else {
     const date = new Date();
     const timestamp = channelSync ? channelSync.timestamp : undefined;
-    const syncVideos =
-      channelSync && channelSync.level && channelSync.level >= 2 ? true : false;
-    const syncCollection =
-      !channelSync ||
-      (channelSync && channelSync.level && channelSync.level >= 1)
-        ? true
-        : false;
-    syncUploads(channel.uploads, client, repo, timestamp).then((r) => {
+    const syncVideos = channelSync && channelSync.level && channelSync.level >= 2 ? true : false;
+    const syncCollection = ((!channelSync || (channelSync && channelSync.level && channelSync.level >= 1)) ? true : false);
+    syncUploads(channel.uploads, client, repo, timestamp).then(r => {
+      channel.timestamp = r.timestamp;
       channel.count = r.count;
       channel.itemCount = r.all;
-      syncChannelPlaylists(
-        channel.id,
-        syncVideos,
-        syncCollection,
-        client,
-        repo
-      ).then(() => {
+      syncChannelPlaylists(channel.id, syncVideos, syncCollection, client, repo).then(res => {
+        if (syncCollection) {
+          channel.playlistCount = res.count;
+          channel.playlistItemCount = res.all;
+          channel.playlistVideoCount = res.videoCount;
+          channel.playlistVideoItemCount = res.allVideoCount;
+        }
         return repo.saveChannel(channel).then(() => {
-          return repo.saveChannelSync({
-            id: channel.id,
-            timestamp: date,
-            uploads: channel.uploads,
-          });
+          return repo.saveChannelSync({id: channel.id, timestamp: date, uploads: channel.uploads});
         });
       });
     });
   }
 }
 
-export function syncPlaylists(
-  playlistIds: string[],
-  syncVideos: boolean,
-  client: SyncClient,
-  repo: SyncRepository
-): Promise<number> {
-  const promises = playlistIds.map((playlistId) =>
-    syncPlaylist(playlistId, syncVideos, client, repo)
-  );
+export function syncPlaylists(playlistIds: string[], syncVideos: boolean, client: SyncClient, repo: SyncRepository): Promise<number> {
+  const promises = playlistIds.map(playlistId => syncPlaylist(playlistId, syncVideos, client, repo));
   let sum = 0;
   return Promise.all(promises).then((res) => {
     for (const num of res) {
@@ -122,12 +102,7 @@ export function syncPlaylists(
     return sum;
   });
 }
-export async function syncPlaylist(
-  playlistId: string,
-  syncVideos: boolean,
-  client: SyncClient,
-  repo: SyncRepository
-): Promise<number> {
+export async function syncPlaylist(playlistId: string, syncVideos: boolean, client: SyncClient, repo: SyncRepository): Promise<number> {
   const res = await syncPlaylistVideos(playlistId, syncVideos, client, repo);
   const playlist = await client.getPlaylist(playlistId);
   playlist.itemCount = playlist.count;
@@ -142,21 +117,12 @@ export interface VideoResult {
   count?: number;
   all?: number;
   videos?: string[];
+  timestamp?: Date;
 }
-export function syncVideosOfPlaylists(
-  playlistIds: string[],
-  syncVideos: boolean,
-  saveCollection: boolean,
-  client: SyncClient,
-  repo: SyncRepository
-): Promise<number> {
+export function syncVideosOfPlaylists(playlistIds: string[], syncVideos: boolean, saveCollection: boolean, client: SyncClient, repo: SyncRepository): Promise<number> {
   let sum = 0;
   if (saveCollection) {
-    const promises = playlistIds.map((id) =>
-      syncPlaylistVideos(id, syncVideos, client, repo).then((r) =>
-        repo.savePlaylistVideos(id, r.videos)
-      )
-    );
+    const promises = playlistIds.map(id => syncPlaylistVideos(id, syncVideos, client, repo).then((r) => repo.savePlaylistVideos(id, r.videos)));
     return Promise.all(promises).then((res) => {
       for (const num of res) {
         sum = sum + num;
@@ -164,9 +130,7 @@ export function syncVideosOfPlaylists(
       return sum;
     });
   } else {
-    const promises = playlistIds.map((id) =>
-      syncPlaylistVideos(id, syncVideos, client, repo)
-    );
+    const promises = playlistIds.map(id => syncPlaylistVideos(id, syncVideos, client, repo));
     return Promise.all(promises).then((res) => {
       for (const num of res) {
         sum = sum + num.success;
@@ -178,6 +142,8 @@ export function syncVideosOfPlaylists(
 export interface PlaylistResult {
   count?: number;
   all?: number;
+  videoCount?: number;
+  allVideoCount?: number;
 }
 export async function syncChannelPlaylists(
   channelId: string,
@@ -186,28 +152,24 @@ export async function syncChannelPlaylists(
   client: SyncClient,
   repo: SyncRepository
 ): Promise<PlaylistResult> {
-  let nextPageToken = "";
+  let nextPageToken = '';
   let count = 0;
   let all = 0;
+  let allVideoCount = 0;
   while (nextPageToken !== undefined) {
-    const channelPlaylists = await client.getChannelPlaylists(
-      channelId,
-      50,
-      nextPageToken
-    );
+    const channelPlaylists = await client.getChannelPlaylists(channelId, 50, nextPageToken);
     all = channelPlaylists.total;
     count = count + channelPlaylists.list.length;
-    const playlistIds = channelPlaylists.list.map((item) => item.id);
+    const playlistIds: string[] = [];
+    for (const p of channelPlaylists.list) {
+      playlistIds.push(p.id);
+      allVideoCount = allVideoCount + p.count;
+    }
     nextPageToken = channelPlaylists.nextPageToken;
-    await syncVideosOfPlaylists(
-      playlistIds,
-      syncVideos,
-      saveCollection,
-      client,
-      repo
-    );
+    await repo.savePlaylists(channelPlaylists.list);
+    await syncVideosOfPlaylists(playlistIds, syncVideos, saveCollection, client, repo);
   }
-  return { count, all };
+  return { count, all, allVideoCount };
 }
 export async function syncPlaylistVideos(
   playlistId: string,
@@ -215,7 +177,7 @@ export async function syncPlaylistVideos(
   client: SyncClient,
   repo: SyncRepository
 ): Promise<VideoResult> {
-  let nextPageToken = "";
+  let nextPageToken = '';
   let success = 0;
   let count = 0;
   let all = 0;
@@ -243,10 +205,11 @@ export async function syncUploads(
   repo: SyncRepository,
   timestamp?: Date
 ): Promise<VideoResult> {
-  let nextPageToken = "";
+  let nextPageToken = '';
   let success = 0;
   let count = 0;
   let all = 0;
+  let last: Date;
   while (nextPageToken !== undefined) {
     const playlistVideos = await client.getPlaylistVideos(
       uploads,
@@ -255,6 +218,9 @@ export async function syncUploads(
     );
     all = playlistVideos.total;
     count = count + playlistVideos.list.length;
+    if (!last && playlistVideos.list.length > 0) {
+      last = playlistVideos.list[0].publishedAt;
+    }
     const newVideos = getNewVideos(playlistVideos.list, timestamp);
     nextPageToken =
       playlistVideos.list.length > newVideos.length
@@ -263,7 +229,7 @@ export async function syncUploads(
     const r = await saveVideos(newVideos, client.getVideos, repo);
     success = success + r;
   }
-  return { count: success, all };
+  return { count: success, all, timestamp: last };
 }
 export function saveVideos(
   newVideos: PlaylistVideo[],
@@ -295,10 +261,7 @@ export function saveVideos(
     }
   }
 }
-export function getNewVideos(
-  videos: PlaylistVideo[],
-  lastSynchronizedTime?: Date
-): PlaylistVideo[] {
+export function getNewVideos(videos: PlaylistVideo[], lastSynchronizedTime?: Date): PlaylistVideo[] {
   if (!lastSynchronizedTime) {
     return videos;
   }

@@ -33,6 +33,7 @@ export interface SyncRepository {
   getChannelSync(channelId: string): Promise<ChannelSync>;
   saveChannel(channel: Channel): Promise<number>;
   savePlaylist(playlist: Playlist): Promise<number>;
+  savePlaylists(playlist: Playlist[]): Promise<number>;
   saveChannelSync(channel: ChannelSync): Promise<number>;
   saveVideos(videos: Video[]): Promise<number>;
   savePlaylistVideos(playlistId: string, videos: string[]): Promise<number>;

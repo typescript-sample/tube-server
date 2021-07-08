@@ -1,5 +1,5 @@
-import { Request, Response } from "express";
-import { TubeService } from "../services/TubeService";
+import { Request, Response } from 'express';
+import { TubeService } from '../services/TubeService';
 
 export class TubeController {
   constructor(private tubeService: TubeService) {
@@ -24,7 +24,7 @@ export class TubeController {
   getChannel(req: Request, res: Response) {
     const { id } = req.params;
     if (!id || id.length === 0) {
-      return res.status(400).send("Id cannot be empty");
+      return res.status(400).send('Id cannot be empty');
     }
     this.tubeService
       .getChannel(id)
@@ -40,7 +40,7 @@ export class TubeController {
   getChannelsSync(req: Request, res: Response) {
     const { id } = req.params;
     if (!id || id.length === 0) {
-      return res.status(400).send("Id cannot be empty");
+      return res.status(400).send('Id cannot be empty');
     }
     this.tubeService
       .getChannelSync(id)
@@ -56,7 +56,7 @@ export class TubeController {
   getPlaylistVideo(req: Request, res: Response) {
     const { id } = req.params;
     if (!id || id.length === 0) {
-      return res.status(400).send("Id cannot be empty");
+      return res.status(400).send('Id cannot be empty');
     }
     this.tubeService.getPlaylistVideo(id).then((playlistVideo) => {
       this.tubeService
