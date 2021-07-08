@@ -8,4 +8,5 @@ export interface TubeService {
   getVideo(videoId: string): Promise<Video>;
   getPlaylistVideo(id: string): Promise<PlaylistCollection>;
   getVideoByPlaylistId(videoIds: string[]): Promise<Video[]>;
+  getPlaylistVideos(ids: string[]): Promise<Video[]>;
 }

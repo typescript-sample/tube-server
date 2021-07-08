@@ -12,4 +12,6 @@ export function route(app: Application, ctx: ApplicationContext): void {
   app.get("/tube/videos", tube.getAllVideos);
   app.get("/tube/channels/:id", tube.getChannel);
   app.get("/tube/videos/:id", tube.getPlaylistVideo);
+
+  app.get("/tube/playlistVideos", tube.getPlaylistVideos);
 }

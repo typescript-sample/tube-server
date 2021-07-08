@@ -48,6 +48,11 @@ export class MongoTubeService implements TubeService {
       this.id
     );
   }
+  async getPlaylistVideos(ids: string[]): Promise<Video[]> {
+    const query: FilterQuery<any> = { _id: { $in: ids } };
+    const r = await findWithMap<any>(this.videosCollection, query, this.id);
+    return findWithMap<any>(this.videosCollection, query, this.id);
+  }
   getVideoByPlaylistId(videoIds: string[]): Promise<Video[]> {
     const query: FilterQuery<any> = { _id: videoIds };
     return findWithMap<Video>(this.videosCollection, query, this.id);

@@ -4,10 +4,9 @@ import { Db } from 'mongodb';
 import { ApplicationContext } from './context';
 import { TubeController } from './controllers/TubeController';
 import { MongoTubeService } from './services/mongo/MongoTubeService';
-import { DefaultSyncService } from './sync/DefaultSyncService';
 import { MongoVideoRepository } from './sync/MongoSyncRepository';
 import { SyncController } from './sync/SyncController';
-import { YoutubeClient } from './video-plus';
+import { DefaultSyncService, YoutubeClient } from './video-plus';
 
 export function createContext(db: Db, key: string): ApplicationContext {
   const httpRequest = new HttpRequest(axios);

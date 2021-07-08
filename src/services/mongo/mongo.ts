@@ -121,8 +121,6 @@ export function find<T>(
     if (project) {
       cursor = cursor.project(project);
     }
-    console.log("query: ", query);
-    console.log(cursor.map((item) => item));
     cursor.toArray((err, items: T[]) => (err ? reject(err) : resolve(items)));
   });
 }

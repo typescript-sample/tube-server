@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { SyncService } from './SyncService';
+import { SyncService } from '../video-plus';
 
 export class SyncController {
   constructor(private service: SyncService) {
@@ -18,8 +18,8 @@ export class SyncController {
       }).catch(err => res.status(500).json(err));
   }
   async syncPlaylist(req: Request, res: Response) {
-    const { playlistId } = req.body;
-    this.service.syncPlaylist(playlistId)
+    const { playlistId, level } = req.body;
+    this.service.syncPlaylist(playlistId, level)
       .then(result => res.status(200).end('Sync PLaylist Successful!'))
       .catch(err => res.status(500).json(err));
   }
