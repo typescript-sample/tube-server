@@ -80,7 +80,9 @@ export class TubeController {
         );
         this.tubeService
           .getPlaylistVideos(ids)
-          .then((videos) => res.status(200).json(videos))
+          .then((videos) => {
+            res.status(200).json(videos);
+          })
           .catch((err) => res.status(500).json(err));
       })
       .catch(() => res.status(500).send("Id not invalid"));
