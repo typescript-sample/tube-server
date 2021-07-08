@@ -29,7 +29,6 @@ export class MongoVideoRepository {
     return findOne<ChannelSync>(this.channelSyncCollection, query, this.id);
   }
   saveChannel(channel: Channel): Promise<number> {
-    console.log("saveChannel is called");
     return upsert(this.channelsCollection, channel, this.id);
   }
   savePlaylist(playlist: Playlist): Promise<number> {
