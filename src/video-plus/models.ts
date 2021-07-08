@@ -4,6 +4,33 @@ export interface ListResult<T> {
   limit?: number;
   nextPageToken?: string;
 }
+export interface ChannelSM {
+  keyword?: string;
+  order?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
+  nextPageToken?: string;
+  forMine?: boolean;
+  channelId?: string;
+  channelType?: string; // any, show
+  publishedAfter?: Date;
+  publishedBefore?: Date;
+  regionCode?: string;
+  relevanceLanguage?: string;
+  safeSearch?: string; // moderate, none, strict
+  topicId?: string;
+}
+export interface PlaylistSM {
+  keyword?: string;
+  order?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
+  nextPageToken?: string;
+  forMine?: boolean;
+  channelId?: string;
+  channelType?: string; // any, show
+  publishedAfter?: Date;
+  publishedBefore?: Date;
+  regionCode?: string;
+  relevanceLanguage?: string;
+  safeSearch?: string; // moderate, none, strict
+}
 export interface ItemSM {
   keyword?: string;
   type?: string; // video, channel, playlist
@@ -36,11 +63,7 @@ export interface Item extends Title, Thumbnail, ChannelInfo {
   liveBroadcastContent?: string; // upcoming, live, none
   publishTime: Date;
 }
-export interface ItemInfo
-  extends Title,
-    Thumbnail,
-    ChannelInfo,
-    LocalizedTitle {
+export interface ItemInfo extends Title, Thumbnail, ChannelInfo, LocalizedTitle {
   kind?: string;
   id?: string;
 }
@@ -57,13 +80,14 @@ export interface Channel extends ItemInfo {
   favorites?: string;
   uploads?: string;
   count?: number;
-  playlistCount?: number;
   itemCount?: number;
+  playlistCount?: number;
   playlistItemCount?: number;
+  timestamp?: Date;
 }
 export interface Playlist extends ItemInfo, BigThumbnail {
-  itemCount?: number;
   count?: number;
+  itemCount?: number;
 }
 export interface PlaylistItemInfo {
   playlistId?: string;
@@ -71,10 +95,8 @@ export interface PlaylistItemInfo {
   videoOwnerChannelId?: string;
   videoOwnerChannelTitle?: string;
 }
-export interface PlaylistVideo
-  extends ItemInfo,
-    BigThumbnail,
-    PlaylistItemInfo {}
+export interface PlaylistVideo extends ItemInfo, BigThumbnail, PlaylistItemInfo {
+}
 export interface VideoInfo {
   tags?: string[];
   categoryId?: string;
@@ -186,7 +208,8 @@ export interface ResourceId extends YoutubeKind {
 export interface PlaylistVideoSnippet extends PlaylistItemInfo, BaseSnippet {
   resourceId: ResourceId;
 }
-export interface VideoSnippet extends BaseSnippet, VideoInfo {}
+export interface VideoSnippet extends BaseSnippet, VideoInfo {
+}
 export interface YoutubeListResult<T> extends YoutubeKind {
   etag: string;
   items: T[];

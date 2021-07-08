@@ -7,7 +7,7 @@ import {
   PlaylistVideo,
   Video,
 } from "../video-plus";
-import { findOne, update, upsert, upsertMany, findWithMap } from "./mongo";
+import { findOne, findWithMap, update, upsert, upsertMany } from "./mongo";
 
 export class MongoVideoRepository {
   private readonly id = "id";
@@ -22,12 +22,14 @@ export class MongoVideoRepository {
     this.videosCollection = db.collection("video");
     this.playlistsCollection = db.collection("playlist");
     this.playlistVideoCollection = db.collection("playlistVideo");
+    this.saveVideos = this.saveVideos.bind(this);
   }
   getChannelSync(channelId: string): Promise<ChannelSync> {
     const query: FilterQuery<any> = { _id: channelId };
     return findOne<ChannelSync>(this.channelSyncCollection, query, this.id);
   }
   saveChannel(channel: Channel): Promise<number> {
+    console.log("saveChannel is called");
     return upsert(this.channelsCollection, channel, this.id);
   }
   savePlaylist(playlist: Playlist): Promise<number> {

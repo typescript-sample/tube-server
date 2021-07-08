@@ -2,11 +2,12 @@ import {
   Channel,
   ChannelSync,
   ListResult,
+  notIn,
   Playlist,
   PlaylistCollection,
   PlaylistVideo,
   Video,
-} from "video-plus";
+} from "../video-plus";
 import { SyncService } from "./SyncService";
 
 export interface VideoRepository {
@@ -18,7 +19,7 @@ export interface VideoRepository {
   getPlaylist(playlistId: string): Promise<Playlist>;
   getPlaylistVideo(playlistId: string): Promise<PlaylistCollection>; // used in sync Uploads
   getPlaylistVideos(playlistId: string): Promise<string[]>;
-  savePlaylistVideos?(playlistId: string, videos: string[]): Promise<number>;
+  savePlaylistVideos(playlistId: string, videos: string[]): Promise<number>;
   getVideoIds(id: string[]): Promise<string[]>;
 }
 
@@ -56,191 +57,44 @@ export async function syncChannel(
   client: VideoClient,
   repo: VideoRepository
 ): Promise<number> {
-  const date = new Date();
-  let count = 0;
-  const channelSync = await repo.getChannelSync(channelId);
-  if (!channelSync) {
-    const channel = await client.getChannel(channelId);
-    if (channel.uploads !== "") {
-      const r = await syncUploads(channel.uploads, client, repo);
-      channel.count = r;
-      if (r > 0) {
-        count += r;
-        const playlists = await client.getChannelPlaylists(channel.id);
-        const ids = playlists.list.map(
-          (item) => item.id !== channel.uploads && item.id
-        );
-        const promises = ids.map(
-          async (item) =>
-            item !== channel.uploads &&
-            (await syncChannelPlaylist(item, client, repo))
-        );
-        Promise.all(promises).then(() =>
-          repo
-            .saveChannelSync({
-              id: channel.id,
-              timestamp: date,
-              uploads: channel.uploads,
-            })
-            .then(() => count)
-        );
-        return count;
+  return repo.getChannelSync(channelId).then((channelSync) => {
+    const timestamp = channelSync ? channelSync.timestamp : undefined;
+    const res = client.getChannel(channelId).then((channel) => {
+      if (!channel) {
+        return Promise.resolve(0);
       } else {
-        if (r !== undefined) {
-          return count;
-        }
-      }
-      repo.saveChannel(channel).then(async () => {});
-    } else {
-      return -1;
-    }
-  } else {
-    syncUploads(channelSync.uploads, client, repo, channelSync).then((r) => {
-      if (r > 0) {
-        count += r;
-        client.getChannelPlaylists(channelId).then((playlists) => {
-          const ids = playlists.list.map(
-            (item) => item.id !== channelSync.uploads && item.id
-          );
-          const promises = ids.map((item) =>
-            syncChannelPlaylist(item, client, repo)
-          );
-          Promise.all(promises).then(() => {
-            channelSync.timestamp = date;
-            repo.saveChannelSync(channelSync).then(() => count);
-          });
-        });
-      } else {
-        return count;
+        return checkAndSyncUploads(channel, timestamp, client, repo);
       }
     });
-  }
+    return res;
+  });
 }
-export async function syncChannelPlaylist(
-  playlistId: string,
+export function checkAndSyncUploads(
+  channel: Channel,
+  timestamp: Date,
   client: VideoClient,
   repo: VideoRepository
 ): Promise<number> {
-  const playlistSynced = await repo.getPlaylist(playlistId);
-  let nextPageToken = "";
-  let newVideoIds = [];
-  if (!playlistSynced) {
-    const playlistSync = await client.getPlaylist(playlistId);
-    repo
-      .savePlaylist(playlistSync)
-      .then(async () => {
-        while (nextPageToken !== undefined) {
-          await client
-            .getPlaylistVideos(playlistSync.id, 50, nextPageToken)
-            .then((playlistVideos) => {
-              const videoIds = playlistVideos.list.map((item) => item.id);
-              newVideoIds = newVideoIds.concat(videoIds);
-              nextPageToken = playlistVideos.nextPageToken;
-            });
-        }
-        if (!nextPageToken) {
-          const ids = await repo.getVideoIds(newVideoIds);
-          const newIds = notIn(newVideoIds, ids);
-          if (newIds.length > 0) {
-            const videos = await client.getVideos(newIds);
-            const count = await repo.saveVideos(videos);
-            const l = await repo.savePlaylistVideos(
-              playlistSynced.id,
-              newVideoIds
-            );
-            return count + l;
-          } else {
-            await repo.savePlaylistVideos(playlistSynced.id, newVideoIds);
-            return newVideoIds.length;
-          }
-        } else {
-          return newVideoIds.length;
-        }
-      })
-      .catch((err) => console.log(err));
+  if (!channel.uploads || channel.uploads.length === 0) {
+    return Promise.resolve(0);
   } else {
-    while (nextPageToken !== undefined) {
-      await client
-        .getPlaylistVideos(playlistSynced.id, 50, nextPageToken)
-        .then((playlistVideos) => {
-          if (playlistSynced.itemCount < playlistVideos.total) {
-            const videoIds = playlistVideos.list.map((item) => item.id);
-            newVideoIds = newVideoIds.concat(videoIds);
-            nextPageToken = playlistVideos.nextPageToken;
-          } else {
-            nextPageToken = undefined;
-          }
+    const date = new Date();
+    syncUploads(channel.uploads, client, repo.saveVideos, timestamp).then(
+      (r) => {
+        channel.count = r.count;
+        channel.itemCount = r.all;
+        syncChannelPlaylists(channel.id, client, repo).then(() => {
+          return repo.saveChannel(channel).then(() => {
+            return repo.saveChannelSync({
+              id: channel.id,
+              timestamp: date,
+              uploads: channel.uploads,
+            });
+          });
         });
-    }
-    if (!nextPageToken) {
-      const ids = await repo.getVideoIds(newVideoIds);
-      const newIds = notIn(newVideoIds, ids);
-      if (newIds.length > 0) {
-        const videos = await client.getVideos(newIds);
-        const count = await repo.saveVideos(videos);
-        const l = await repo.savePlaylistVideos(playlistSynced.id, newVideoIds);
-        return count + l;
-      } else {
-        await repo.savePlaylistVideos(playlistSynced.id, newVideoIds);
-        return newVideoIds.length;
       }
-    } else {
-      return newVideoIds.length;
-    }
-  }
-}
-
-export async function syncUploads(
-  uploads: string,
-  client: VideoClient,
-  repo: VideoRepository,
-  channelSync?: ChannelSync
-) {
-  let nextPageToken = "";
-  const playlistVideoCollection: PlaylistCollection = {
-    id: "",
-    videos: [],
-  };
-  let count = 0;
-  while (nextPageToken !== undefined) {
-    console.log("start white", count);
-    const resultVideos = await client.getPlaylistVideos(
-      uploads,
-      50,
-      nextPageToken
     );
-    const array = getNewVideos(resultVideos.list, channelSync);
-    if (resultVideos.list.length > array.length) {
-      nextPageToken = undefined;
-    } else {
-      nextPageToken = resultVideos.nextPageToken;
-    }
-    const videoIds = array.map((item) => item.id);
-    const videos = await client.getVideos(videoIds);
-    await repo.saveVideos(videos);
-    count = count + videos.length;
-    console.log("count: ", count);
   }
-  return count;
-}
-
-export function getNewVideos(
-  playlistVideos: PlaylistVideo[],
-  channelSync: ChannelSync
-) {
-  if (!channelSync) {
-    return playlistVideos;
-  }
-  const timestamp = channelSync.timestamp.getTime();
-  let array: PlaylistVideo[] = [];
-  for (let i of playlistVideos) {
-    if (i.publishedAt.getTime() > timestamp) {
-      array.push(i);
-    } else {
-      return array;
-    }
-  }
-  return array;
 }
 
 export async function syncPlaylist(
@@ -248,81 +102,165 @@ export async function syncPlaylist(
   client: VideoClient,
   repo: VideoRepository
 ): Promise<number> {
-  const playlistSynced = await repo.getPlaylist(playlistId);
+  const res = await syncPlaylistVideos(playlistId, client, repo.saveVideos);
+  const playlist = await client.getPlaylist(playlistId);
+  playlist.itemCount = playlist.count;
+  playlist.count = res.count;
+  await repo.savePlaylist(playlist);
+  await repo.savePlaylistVideos(playlistId, res.videos);
+  return res.success;
+}
+
+export interface VideoResult {
+  success?: number;
+  count?: number;
+  all?: number;
+  videos?: string[];
+}
+export function syncVideosOfPlaylists(
+  playlistIds: string[],
+  client: VideoClient,
+  repo: VideoRepository
+): Promise<number> {
+  const promises = playlistIds.map((id) =>
+    syncPlaylistVideos(id, client, repo.saveVideos, repo.savePlaylistVideos)
+  );
+  return Promise.all(promises).then((res) => {
+    let sum = 0;
+    for (const num of res) {
+      sum = sum + num.success;
+    }
+    return sum;
+  });
+}
+export interface PlaylistResult {
+  count?: number;
+  all?: number;
+}
+export async function syncChannelPlaylists(
+  channelId: string,
+  client: VideoClient,
+  repo: VideoRepository
+): Promise<PlaylistResult> {
   let nextPageToken = "";
-  if (!playlistSynced) {
-    let newVideoIds = [];
-    const playlistSync = await client.getPlaylist(playlistId);
-    repo.savePlaylist(playlistSync).then(async () => {
-      while (nextPageToken !== undefined) {
-        await client
-          .getPlaylistVideos(playlistSync.id, 50, nextPageToken)
-          .then((resultVideos) => {
-            const videoIds = resultVideos.list.map((item) => item.id);
-            newVideoIds = newVideoIds.concat(videoIds);
-            client.getVideos(videoIds).then((videos) => {
-              repo.saveVideos(videos);
-            });
-            nextPageToken = resultVideos.nextPageToken;
-          });
-      }
-      if (!nextPageToken) {
-        await repo.savePlaylistVideos(playlistSync.id, newVideoIds);
-        return newVideoIds.length;
+  let count = 0;
+  let all = 0;
+  while (nextPageToken !== undefined) {
+    console.log(channelId);
+    const channelPlaylists = await client.getChannelPlaylists(
+      channelId,
+      50,
+      nextPageToken
+    );
+    all = channelPlaylists.total;
+    count = count + channelPlaylists.list.length;
+    const playlistIds = channelPlaylists.list.map((item) => item.id);
+    nextPageToken = channelPlaylists.nextPageToken;
+    await syncVideosOfPlaylists(playlistIds, client, repo);
+    // const promise = channelPlaylists.list.map((item) =>
+    //   repo.savePlaylist(item)
+    // );
+    // Promise.all(promise).then((res) => console.log(res));
+  }
+  return { count, all };
+}
+export async function syncPlaylistVideos(
+  playlistId: string,
+  client: VideoClient,
+  save: (videos: Video[]) => Promise<number>,
+  savePlaylistVideos?: (
+    playlistId: string,
+    videos: string[]
+  ) => Promise<number>,
+  timestamp?: Date
+): Promise<VideoResult> {
+  let nextPageToken = "";
+  let success = 0;
+  let count = 0;
+  let all = 0;
+  let newVideoIds: string[] = [];
+  while (nextPageToken !== undefined) {
+    const playlistVideos = await client.getPlaylistVideos(
+      playlistId,
+      50,
+      nextPageToken
+    );
+    all = playlistVideos.total;
+    count = count + playlistVideos.list.length;
+    const allVideoIds = playlistVideos.list.map((item) => item.id);
+    newVideoIds = newVideoIds.concat(allVideoIds);
+    const newVideos = getNewVideos(playlistVideos.list, timestamp);
+    const r = await saveVideos(newVideos, client.getVideos, save);
+    success = success + r;
+    nextPageToken = playlistVideos.nextPageToken;
+  }
+  return { success, count, all, videos: newVideoIds };
+}
+export async function syncUploads(
+  uploads: string,
+  client: VideoClient,
+  save: (videos: Video[]) => Promise<number>,
+  timestamp?: Date
+): Promise<VideoResult> {
+  let nextPageToken = "";
+  let success = 0;
+  let count = 0;
+  let all = 0;
+  while (nextPageToken !== undefined) {
+    const playlistVideos = await client.getPlaylistVideos(
+      uploads,
+      50,
+      nextPageToken
+    );
+    all = playlistVideos.total;
+    count = count + playlistVideos.list.length;
+    const newVideos = getNewVideos(playlistVideos.list, timestamp);
+    if (playlistVideos.list.length > newVideos.length) {
+      nextPageToken = undefined;
+    } else {
+      nextPageToken = playlistVideos.nextPageToken;
+    }
+    const r = await saveVideos(newVideos, client.getVideos, save);
+    success = success + r;
+  }
+  return { count: success, all };
+}
+export function saveVideos(
+  newVideos: PlaylistVideo[],
+  getVideos: (ids: string[], noSnippet?: boolean) => Promise<Video[]>,
+  save: (v: Video[]) => Promise<number>
+): Promise<number> {
+  if (!newVideos || newVideos.length === 0) {
+    return Promise.resolve(0);
+  } else {
+    const videoIds = newVideos.map((item) => item.id);
+    return getVideos(videoIds).then((videos) => {
+      if (videos && videos.length > 0) {
+        return save(videos).then((r) => videos.length);
+      } else {
+        return Promise.resolve(0);
       }
     });
-  } else {
-    let newVideoIds = [];
-    while (nextPageToken !== undefined) {
-      await client
-        .getPlaylistVideos(playlistSynced.id, 50, nextPageToken)
-        .then((resultVideos) => {
-          if (playlistSynced.itemCount < resultVideos.total) {
-            const videoIds = resultVideos.list.map((item) => item.id);
-            newVideoIds = newVideoIds.concat(videoIds);
-            client.getVideos(videoIds).then((videos) => {
-              repo.saveVideos(videos);
-            });
-            nextPageToken = resultVideos.nextPageToken;
-          } else {
-            nextPageToken = undefined;
-          }
-        });
-    }
-    if (!nextPageToken) {
-      await repo.savePlaylistVideos(playlistSynced.id, newVideoIds);
-      return newVideoIds.length;
-    }
   }
 }
-
-export function notIn(ids: string[], subIds: string[]) {
-  const newIds: string[] = [];
-  for (const id of ids) {
-    const i = binarySearch(subIds, id);
-    if (i < 0) {
-      newIds.push(id);
+export function getNewVideos(videos: PlaylistVideo[], channelTimestamp?: Date) {
+  if (!channelTimestamp) {
+    return videos;
+  }
+  const timestamp = addSeconds(channelTimestamp, -3600);
+  const t = timestamp.getTime();
+  const newVideos: PlaylistVideo[] = [];
+  for (const i of videos) {
+    if (i.publishedAt.getTime() > t) {
+      newVideos.push(i);
+    } else {
+      return newVideos;
     }
   }
-  return newIds;
+  return newVideos;
 }
-export function binarySearch<T>(items: T[], value: T) {
-  let startIndex = 0;
-  let stopIndex = items.length - 1;
-  let middle = Math.floor((stopIndex + startIndex) / 2);
-
-  while (items[middle] !== value && startIndex < stopIndex) {
-    // adjust search area
-    if (value < items[middle]) {
-      stopIndex = middle - 1;
-    } else if (value > items[middle]) {
-      startIndex = middle + 1;
-    }
-
-    // recalculate middle
-    middle = Math.floor((stopIndex + startIndex) / 2);
-  }
-
-  // make sure it's the right value
-  return items[middle] !== value ? -1 : middle;
+export function addSeconds(date: Date, number: number) {
+  const newDate = new Date(date);
+  newDate.setSeconds(newDate.getSeconds() + number);
+  return newDate;
 }

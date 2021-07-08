@@ -3,10 +3,10 @@ import {
   Collection,
   FilterQuery,
   FindAndModifyWriteOpResultObject,
-  SortOptionObject,
-  SchemaMember,
   ProjectionOperators,
-} from "mongodb";
+  SchemaMember,
+  SortOptionObject,
+} from 'mongodb';
 
 export interface StringMap {
   [key: string]: string;
@@ -43,15 +43,15 @@ export async function findWithMap<T>(
 ): Promise<T[]> {
   const objects = await find<T>(collection, query, sort, limit, skip, project);
   for (const obj of objects) {
-    if (idName && idName !== "") {
-      (obj as any)[idName] = (obj as any)["_id"];
+    if (idName && idName !== '') {
+      (obj as any)[idName] = (obj as any)['_id'];
     }
-    delete (obj as any)["_id"];
+    delete (obj as any)['_id'];
   }
   if (!m) {
     return objects;
   } else {
-    return await mapArray(objects, m);
+    return mapArray(objects, m);
   }
 }
 export function find<T>(
@@ -92,8 +92,8 @@ export async function insert<T>(
     return value.insertedCount;
   } catch (err) {
     if (handleDuplicate && err && err.errmsg) {
-      if (err.errmsg.indexOf("duplicate key error collection:") >= 0) {
-        if (err.errmsg.indexOf("dup key: { _id:") >= 0) {
+      if (err.errmsg.indexOf('duplicate key error collection:') >= 0) {
+        if (err.errmsg.indexOf('dup key: { _id:') >= 0) {
           return 0;
         } else {
           return -1;
@@ -110,13 +110,13 @@ export function update<T>(
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     revertOne(obj, idName);
-    if (!(obj as any)["_id"]) {
+    if (!(obj as any)['_id']) {
       return reject(
-        new Error("Cannot updateOne an Object that do not have _id field.")
+        new Error('Cannot updateOne an Object that do not have _id field.')
       );
     }
     collection.findOneAndReplace(
-      { _id: (obj as any)["_id"] },
+      { _id: (obj as any)['_id'] },
       obj as any,
       { returnOriginal: false },
       (err, result: FindAndModifyWriteOpResultObject<T>) => {
@@ -136,10 +136,10 @@ export function upsert<T>(
   idName?: string
 ): Promise<number> {
   const obj: any = revertOne(object, idName);
-  if (obj["_id"]) {
+  if (obj['_id']) {
     return new Promise<number>((resolve, reject) => {
       collection.findOneAndUpdate(
-        { _id: obj["_id"] },
+        { _id: obj['_id'] },
         { $set: obj },
         {
           upsert: true,
@@ -170,10 +170,10 @@ export function upsertMany<T>(
     const operations = [];
     revertArray(objects, idName);
     for (const object of objects) {
-      if ((object as any)["_id"]) {
+      if ((object as any)['_id']) {
         operations.push({
           updateOne: {
-            filter: { _id: (object as any)["_id"] },
+            filter: { _id: (object as any)['_id'] },
             update: { $set: object },
             upsert: true,
           },
@@ -198,7 +198,7 @@ export function upsertMany<T>(
 }
 export function revertOne(obj: any, idName?: string): any {
   if (idName && idName.length > 0) {
-    obj["_id"] = obj[idName];
+    obj['_id'] = obj[idName];
     delete obj[idName];
   }
   return obj;
@@ -211,7 +211,7 @@ export function revertArray<T>(objs: T[], idName?: string): T[] {
     const length = objs.length;
     for (let i = 0; i < length; i++) {
       const obj: any = objs[i];
-      obj["_id"] = obj[idName];
+      obj['_id'] = obj[idName];
       delete obj[idName];
     }
   }
@@ -222,8 +222,8 @@ export function mapOne(obj: any, idName?: string, m?: StringMap): any {
     return obj;
   }
   if (idName && idName.length > 0) {
-    obj[idName] = obj["_id"];
-    delete obj["_id"];
+    obj[idName] = obj['_id'];
+    delete obj['_id'];
   }
   if (m) {
     return _mapOne(obj, m);
