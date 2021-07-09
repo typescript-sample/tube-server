@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
-import { ListResult, PlaylistVideo, Video } from "video-plus";
+import { CategoryCollection } from "services/mongo/MongoTubeService";
+import { ListResult, PlaylistVideo, Video, YoutubeClient } from "video-plus";
 import { TubeService } from "../services/TubeService";
 
 export class TubeController {
-  constructor(private tubeService: TubeService) {
+  constructor(private tubeService: TubeService, private client: YoutubeClient) {
     this.getAllChannels = this.getAllChannels.bind(this);
     this.getAllVideos = this.getAllVideos.bind(this);
     this.getChannel = this.getChannel.bind(this);
@@ -98,8 +99,10 @@ export class TubeController {
   async getChannelVideos(req: Request, res: Response) {
     const { channelId, maxResults, nextPageToken } = req.query;
     let next = new Date();
+    let videoId = "";
     if (nextPageToken) {
       const arr = nextPageToken.toString().split("|");
+      videoId = arr[0];
       next = new Date(arr[1]);
       if (arr.length < 2 || new Date(arr[1]).toString() === "Invalid Date") {
         return res.status(500).send("Next Page Token is not valid");
@@ -107,17 +110,21 @@ export class TubeController {
     }
     const max = maxResults ? Number(maxResults) : 10;
     this.tubeService
-      .getChannelVideos(channelId.toString(), max, next)
+      .getChannelVideos(channelId.toString(), videoId, max, next)
       .then((playlistVideo) => {
-        const result: ListResult<PlaylistVideo> = {
-          list: playlistVideo,
-          nextPageToken: `${
-            playlistVideo[playlistVideo.length - 1].id
-          }|${playlistVideo[
-            playlistVideo.length - 1
-          ].publishedAt.toISOString()}`,
-        };
-        res.status(200).json(result);
+        if (playlistVideo.length > 0) {
+          const result: ListResult<PlaylistVideo> = {
+            list: playlistVideo,
+            nextPageToken: `${
+              playlistVideo[playlistVideo.length - 1].id
+            }|${playlistVideo[
+              playlistVideo.length - 1
+            ].publishedAt.toISOString()}`,
+          };
+          return res.status(200).json(result);
+        } else {
+          return res.status(200).json([]);
+        }
       });
   }
 }

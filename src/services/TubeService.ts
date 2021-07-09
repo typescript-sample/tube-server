@@ -6,6 +6,7 @@ import {
   PlaylistVideo,
   Video,
 } from "../video-plus";
+import { CategoryCollection } from "./mongo/MongoTubeService";
 
 export interface TubeService {
   getChannelSync(channelId: string): Promise<ChannelSync>;
@@ -18,6 +19,7 @@ export interface TubeService {
   getPlaylistVideos(ids: string[]): Promise<PlaylistVideo[]>;
   getChannelVideos(
     channelId: string,
+    videoId: string,
     maxResults: number,
     publishedAt: Date
   ): Promise<PlaylistVideo[]>;
