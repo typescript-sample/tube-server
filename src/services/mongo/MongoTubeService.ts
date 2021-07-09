@@ -2,8 +2,10 @@ import { Collection, Db, FilterQuery } from "mongodb";
 import {
   Channel,
   ChannelSync,
+  ListResult,
   Playlist,
   PlaylistCollection,
+  PlaylistVideo,
   Video,
 } from "../../video-plus";
 import { TubeService } from "../TubeService";
@@ -48,10 +50,94 @@ export class MongoTubeService implements TubeService {
       this.id
     );
   }
-  async getPlaylistVideos(ids: string[]): Promise<Video[]> {
+  async getPlaylistVideos(ids: string[]): Promise<PlaylistVideo[]> {
     const query: FilterQuery<any> = { _id: { $in: ids } };
-    const r = await findWithMap<any>(this.videosCollection, query, this.id);
-    return findWithMap<any>(this.videosCollection, query, this.id);
+    const projection = {
+      _id: 1,
+      title: 1,
+      description: 1,
+      publishedAt: 1,
+      standardThumbnail: 1,
+      maxresThumbnail: 1,
+      channelId: 1,
+      channelTitle: 1,
+      localizedTitle: 1,
+      localizedDescription: 1,
+    };
+    const r = await findWithMap<PlaylistVideo>(
+      this.videosCollection,
+      query,
+      this.id,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      projection
+    );
+    return r.map((item) => {
+      return {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        publishedAt: item.publishedAt,
+        standardThumbnail: item.standardThumbnail,
+        maxresThumbnail: item.maxresThumbnail,
+        channelId: item.channelId,
+        channelTitle: item.channelTitle,
+        localizedTitle: item.localizedTitle,
+        localizedDescription: item.localizedDescription,
+        videoOwnerChannelId: item.channelId,
+        videoOwnerChannelTitle: item.channelTitle,
+      };
+    });
+  }
+  async getChannelVideos(
+    channelId: string,
+    maxResults: number,
+    publishedAt: Date
+  ): Promise<PlaylistVideo[]> {
+    const query: FilterQuery<any> = {
+      channelId: channelId,
+      publishedAt: { $lt: publishedAt },
+    };
+    const projection = {
+      _id: 1,
+      title: 1,
+      description: 1,
+      publishedAt: 1,
+      standardThumbnail: 1,
+      maxresThumbnail: 1,
+      channelId: 1,
+      channelTitle: 1,
+      localizedTitle: 1,
+      localizedDescription: 1,
+    };
+    const r = await findWithMap<PlaylistVideo>(
+      this.videosCollection,
+      query,
+      this.id,
+      undefined,
+      undefined,
+      maxResults,
+      undefined,
+      projection
+    );
+    return r.map((item) => {
+      return {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        publishedAt: item.publishedAt,
+        standardThumbnail: item.standardThumbnail,
+        maxresThumbnail: item.maxresThumbnail,
+        channelId: item.channelId,
+        channelTitle: item.channelTitle,
+        localizedTitle: item.localizedTitle,
+        localizedDescription: item.localizedDescription,
+        videoOwnerChannelId: item.channelId,
+        videoOwnerChannelTitle: item.channelTitle,
+      };
+    });
   }
   getVideoByPlaylistId(videoIds: string[]): Promise<Video[]> {
     const query: FilterQuery<any> = { _id: videoIds };
