@@ -97,14 +97,12 @@ export class TubeController {
   }
   async getChannelVideos(req: Request, res: Response) {
     const { channelId, maxResults, nextPageToken } = req.query;
-    let video: Video;
     let next = new Date();
     if (nextPageToken) {
-      video = await this.tubeService.getVideo(nextPageToken.toString());
-      if (video.channelId !== channelId) {
+      const arr = nextPageToken.toString().split("|");
+      next = new Date(arr[1]);
+      if (arr.length < 2 || new Date(arr[1]).toString() === "Invalid Date") {
         return res.status(500).send("Next Page Token is not valid");
-      } else {
-        next = new Date(nextPageToken.toString());
       }
     }
     const max = maxResults ? Number(maxResults) : 10;
@@ -113,7 +111,11 @@ export class TubeController {
       .then((playlistVideo) => {
         const result: ListResult<PlaylistVideo> = {
           list: playlistVideo,
-          nextPageToken: playlistVideo[playlistVideo.length - 1].id,
+          nextPageToken: `${
+            playlistVideo[playlistVideo.length - 1].id
+          }|${playlistVideo[
+            playlistVideo.length - 1
+          ].publishedAt.toISOString()}`,
         };
         res.status(200).json(result);
       });

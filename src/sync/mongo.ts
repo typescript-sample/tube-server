@@ -45,8 +45,8 @@ export async function findWithMap<T>(
   for (const obj of objects) {
     if (idName && idName !== '') {
       (obj as any)[idName] = (obj as any)['_id'];
+      delete (obj as any)['_id'];
     }
-    delete (obj as any)['_id'];
   }
   if (!m) {
     return objects;

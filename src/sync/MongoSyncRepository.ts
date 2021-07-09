@@ -60,7 +60,7 @@ export class MongoVideoRepository implements SyncRepository {
     return findWithMap<any>(
       this.videosCollection,
       query,
-      this.id,
+      undefined,
       undefined,
       undefined,
       undefined,

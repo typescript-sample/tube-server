@@ -153,11 +153,10 @@ export class YoutubeClient implements VideoService {
   }
   getPlaylists(ids: string[]): Promise<Playlist[]> {
     const url = `https://youtube.googleapis.com/youtube/v3/playlists?key=${this.key}&id=${ids.join(',')}&part=snippet,contentDetails`;
-    return this.httpRequest.get<YoutubeListResult<ListItem<string, PlaylistSnippet, ListDetail>>>(url)
-      .then(res => {
-        const r = fromYoutubePlaylists(res);
-        return r.list;
-      });
+    return this.httpRequest.get<YoutubeListResult<ListItem<string, PlaylistSnippet, ListDetail>>>(url).then(res => {
+      const r = fromYoutubePlaylists(res);
+      return r.list;
+    });
   }
   getPlaylist(id: string): Promise<Playlist> {
     const c = this.playlistCache[id];
@@ -626,8 +625,8 @@ export function checkAndSyncUploads(channel: Channel, channelSync: ChannelSync, 
   } else {
     const date = new Date();
     const timestamp = channelSync ? channelSync.timestamp : undefined;
-    const syncVideos = channelSync && channelSync.level && channelSync.level >= 2 ? true : false;
-    const syncCollection = ((!channelSync || (channelSync && channelSync.level && channelSync.level >= 1)) ? true : false);
+    const syncVideos = (!channelSync || (channelSync && channelSync.level && channelSync.level >= 2)) ? true : false;
+    const syncCollection = (!channelSync || (channelSync && channelSync.level && channelSync.level >= 1)) ? true : false;
     syncUploads(channel.uploads, client, repo, timestamp).then(r => {
       channel.timestamp = r.timestamp;
       channel.count = r.count;
