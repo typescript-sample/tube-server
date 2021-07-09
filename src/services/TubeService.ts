@@ -23,4 +23,6 @@ export interface TubeService {
     maxResults: number,
     publishedAt: Date
   ): Promise<PlaylistVideo[]>;
+  getCategory(regionCode: string): Promise<CategoryCollection>;
+  saveCategory(category: CategoryCollection): Promise<number>;
 }

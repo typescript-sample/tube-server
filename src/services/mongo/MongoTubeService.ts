@@ -154,4 +154,7 @@ export class MongoTubeService implements TubeService {
     const query: FilterQuery<any> = { _id: regionCode };
     return findOne<CategoryCollection>(this.categoryCollection, query);
   }
+  saveCategory(category: CategoryCollection): Promise<number> {
+    return upsert(this.categoryCollection, category, this.id);
+  }
 }

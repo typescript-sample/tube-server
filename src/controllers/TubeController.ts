@@ -12,6 +12,7 @@ export class TubeController {
     this.getChannelsSync = this.getChannelsSync.bind(this);
     this.getPlaylistVideos = this.getPlaylistVideos.bind(this);
     this.getChannelVideos = this.getChannelVideos.bind(this);
+    this.getCategory = this.getCategory.bind(this);
   }
   getAllChannels(req: Request, res: Response) {
     this.tubeService.getAllChannels().then(
@@ -77,16 +78,24 @@ export class TubeController {
     this.tubeService
       .getPlaylistVideo(playlistId.toString())
       .then((item) => {
-        const next = nextPageToken
-          ? item.videos.indexOf(nextPageToken.toString())
-          : 0;
+        let next: number = 0;
+        let checkNext: boolean = false;
+        if (nextPageToken) {
+          next = item.videos.indexOf(nextPageToken.toString()) + 1;
+          if (
+            item.videos.indexOf(nextPageToken.toString()) !==
+            item.videos.length - 1
+          ) {
+            checkNext = true;
+          }
+        }
         const ids = item.videos.slice(next, max + next);
         this.tubeService
           .getPlaylistVideos(ids)
           .then((playlistVideo) => {
             const result: ListResult<PlaylistVideo> = {
               list: playlistVideo,
-              nextPageToken: ids[ids.length - 1],
+              nextPageToken: checkNext ? undefined : ids[ids.length - 1],
               total: item.videos.length,
               limit: item.videos.length,
             };
@@ -126,5 +135,29 @@ export class TubeController {
           return res.status(200).json([]);
         }
       });
+  }
+  async getCategory(req: Request, res: Response) {
+    const { regionCode } = req.query;
+    const categoryCollection = await this.tubeService.getCategory(
+      regionCode.toString()
+    );
+    if (categoryCollection) {
+      res.status(200).json(categoryCollection);
+    } else {
+      const category = await this.client.getCagetories(regionCode.toString());
+      if (category) {
+        const titleCategoryToSave = category
+          .filter((item) => item.assignable === true)
+          .map((item) => item.title);
+        const newCategoryCollection: CategoryCollection = {
+          id: regionCode.toString(),
+          data: titleCategoryToSave,
+        };
+        await this.tubeService.saveCategory(newCategoryCollection);
+        return res.status(200).json(newCategoryCollection);
+      } else {
+        return res.status(500).send("regionCode is not valid");
+      }
+    }
   }
 }
