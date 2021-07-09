@@ -2,26 +2,30 @@ import { Collection, Db, FilterQuery } from "mongodb";
 import {
   Channel,
   ChannelSync,
-  ListResult,
-  Playlist,
   PlaylistCollection,
   PlaylistVideo,
   Video,
 } from "../../video-plus";
 import { TubeService } from "../TubeService";
-import { findOne, findWithMap, find } from "./mongo";
+import { findOne, findWithMap, upsert } from "./mongo";
 
+export interface CategoryCollection {
+  id: string;
+  data: string[];
+}
 export class MongoTubeService implements TubeService {
   private readonly id = "id";
   private readonly channelsCollection: Collection;
   private readonly videosCollection: Collection;
   private readonly channelSyncCollection: Collection;
   private readonly playlistVideoCollection: Collection;
+  private readonly categoryCollection: Collection;
   constructor(db: Db) {
     this.channelsCollection = db.collection("channel");
     this.channelSyncCollection = db.collection("channelSync");
     this.videosCollection = db.collection("video");
     this.playlistVideoCollection = db.collection("playlistVideo");
+    this.categoryCollection = db.collection("category");
   }
 
   getAllChannels(): Promise<Channel[]> {
@@ -93,18 +97,21 @@ export class MongoTubeService implements TubeService {
   }
   async getChannelVideos(
     channelId: string,
+    videoId: string,
     maxResults: number,
     publishedAt: Date
   ): Promise<PlaylistVideo[]> {
+    console.log("videoId: ", videoId);
     const query: FilterQuery<any> = {
       channelId: channelId,
-      publishedAt: { $lt: publishedAt },
+      publishedAt: { $lte: publishedAt },
+      _id: { $ne: [videoId] },
     };
     const projection = {
       _id: 1,
       title: 1,
       description: 1,
-      publishedAt: 1,
+      publishedAt: -1,
       standardThumbnail: 1,
       maxresThumbnail: 1,
       channelId: 1,
@@ -118,8 +125,8 @@ export class MongoTubeService implements TubeService {
       this.id,
       undefined,
       undefined,
-      maxResults,
-      undefined,
+      videoId !== "" ? maxResults + 1 : maxResults,
+      videoId !== "" ? 1 : undefined,
       projection
     );
     return r.map((item) => {
@@ -142,5 +149,9 @@ export class MongoTubeService implements TubeService {
   getVideoByPlaylistId(videoIds: string[]): Promise<Video[]> {
     const query: FilterQuery<any> = { _id: videoIds };
     return findWithMap<Video>(this.videosCollection, query, this.id);
+  }
+  getCategory(regionCode: string): Promise<CategoryCollection> {
+    const query: FilterQuery<any> = { _id: regionCode };
+    return findOne<CategoryCollection>(this.categoryCollection, query);
   }
 }
