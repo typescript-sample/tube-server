@@ -2,12 +2,16 @@ import { Collection, Db, FilterQuery } from "mongodb";
 import {
   Channel,
   ChannelSync,
+  ItemSM,
+  Playlist,
   PlaylistCollection,
   PlaylistVideo,
   Video,
 } from "../../video-plus";
 import { TubeService } from "../TubeService";
 import { findOne, findWithMap, upsert } from "./mongo";
+import { buildQuery } from "./query";
+import { SearchBuilder } from "./SearchBuilder";
 
 export interface CategoryCollection {
   id: string;
@@ -18,33 +22,53 @@ export class MongoTubeService implements TubeService {
   private readonly channelsCollection: Collection;
   private readonly videosCollection: Collection;
   private readonly channelSyncCollection: Collection;
+  private readonly playlistCollection: Collection;
   private readonly playlistVideoCollection: Collection;
   private readonly categoryCollection: Collection;
   constructor(db: Db) {
     this.channelsCollection = db.collection("channel");
     this.channelSyncCollection = db.collection("channelSync");
+    this.playlistCollection = db.collection("playlist");
     this.videosCollection = db.collection("video");
     this.playlistVideoCollection = db.collection("playlistVideo");
     this.categoryCollection = db.collection("category");
-  }
-
-  getAllChannels(): Promise<Channel[]> {
-    return findWithMap<Channel>(this.channelsCollection, {}, this.id);
-  }
-  getAllVideos(): Promise<Video[]> {
-    return findWithMap<Video>(this.videosCollection, {}, this.id);
   }
   getChannel(channelId: string): Promise<Channel> {
     const query: FilterQuery<any> = { _id: channelId };
     return findOne<Channel>(this.channelsCollection, query, this.id);
   }
+  getChannels(channelIds: string[]): Promise<Channel[]> {
+    const query: FilterQuery<any> = { _id: { $in: channelIds } };
+    return findWithMap<Channel>(this.channelsCollection, query, this.id);
+  }
   getChannelSync(channelId: string): Promise<ChannelSync> {
     const query: FilterQuery<any> = { _id: channelId };
     return findOne<ChannelSync>(this.channelSyncCollection, query, this.id);
   }
-  getVideo(videoId: string): Promise<Video> {
-    const query: FilterQuery<any> = { _id: videoId };
-    return findOne<Video>(this.videosCollection, query, this.id);
+  getChannelPlaylists(
+    channelId: string,
+    playlistId: string,
+    maxResults: number,
+    publishedAt: Date
+  ): Promise<Playlist[]> {
+    const query: FilterQuery<any> = {
+      channelId: channelId,
+      publishedAt: { $lte: publishedAt },
+    };
+    const sort = { publishedAt: -1 };
+    return findWithMap<any>(
+      this.playlistCollection,
+      query,
+      this.id,
+      undefined,
+      sort,
+      maxResults,
+      playlistId !== "" ? 1 : undefined
+    );
+  }
+  getVideos(videoIds: string[]): Promise<Video[]> {
+    const query: FilterQuery<any> = { _id: { $in: videoIds } };
+    return findWithMap<Video>(this.videosCollection, query, this.id);
   }
   getPlaylistVideo(id: string): Promise<PlaylistCollection> {
     const query: FilterQuery<any> = { _id: id };
@@ -101,11 +125,9 @@ export class MongoTubeService implements TubeService {
     maxResults: number,
     publishedAt: Date
   ): Promise<PlaylistVideo[]> {
-    console.log("videoId: ", videoId);
     const query: FilterQuery<any> = {
       channelId: channelId,
       publishedAt: { $lte: publishedAt },
-      _id: { $ne: [videoId] },
     };
     const projection = {
       _id: 1,
@@ -125,7 +147,7 @@ export class MongoTubeService implements TubeService {
       this.id,
       undefined,
       undefined,
-      videoId !== "" ? maxResults + 1 : maxResults,
+      maxResults,
       videoId !== "" ? 1 : undefined,
       projection
     );
@@ -156,5 +178,28 @@ export class MongoTubeService implements TubeService {
   }
   saveCategory(category: CategoryCollection): Promise<number> {
     return upsert(this.categoryCollection, category, this.id);
+  }
+  // searchVideos(itemSM: ItemSM, maxResults: number): Promise<any> {
+  //   const builder = new SearchBuilder<Video, ItemSM>(
+  //     this.videosCollection,
+  //     buildQuery,
+  //     undefined
+  //   );
+  //   return builder.search(itemSM, maxResults);
+  // }
+  searchVideos(itemSM: ItemSM, maxResults: number): Promise<Video[]> {
+    const query: FilterQuery<any> = {
+      title: { $text: { $search: itemSM.keyword } },
+    };
+    console.log(query);
+    return findWithMap<Video>(
+      this.videosCollection,
+      query,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      maxResults
+    );
   }
 }
