@@ -5,7 +5,7 @@ export interface ListResult<T> {
   nextPageToken?: string;
 }
 export interface ChannelSM {
-  keyword?: string;
+  q?: string;
   order?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
   nextPageToken?: string;
   forMine?: boolean;
@@ -19,7 +19,7 @@ export interface ChannelSM {
   topicId?: string;
 }
 export interface PlaylistSM {
-  keyword?: string;
+  q?: string;
   order?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
   nextPageToken?: string;
   forMine?: boolean;
@@ -32,7 +32,7 @@ export interface PlaylistSM {
   safeSearch?: string; // moderate, none, strict
 }
 export interface ItemSM {
-  keyword?: string;
+  q?: string;
   type?: string; // video, channel, playlist
   videoDuration?: string; // any, long (more than 20 minutes), medium (from 4 minutes to 20 minutes), short (less than 4 minutes)
   order?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)

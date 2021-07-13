@@ -47,13 +47,11 @@ export class MongoTubeService implements TubeService {
   }
   getChannelPlaylists(
     channelId: string,
-    playlistId: string,
-    maxResults: number,
-    publishedAt: Date
+    max: number,
+    oldTotal: number
   ): Promise<Playlist[]> {
     const query: FilterQuery<any> = {
       channelId: channelId,
-      publishedAt: { $lte: publishedAt },
     };
     const sort = { publishedAt: -1 };
     return findWithMap<any>(
@@ -62,8 +60,8 @@ export class MongoTubeService implements TubeService {
       this.id,
       undefined,
       sort,
-      maxResults,
-      playlistId !== "" ? 1 : undefined
+      max,
+      oldTotal
     );
   }
   getVideos(videoIds: string[]): Promise<Video[]> {
@@ -121,13 +119,11 @@ export class MongoTubeService implements TubeService {
   }
   async getChannelVideos(
     channelId: string,
-    videoId: string,
     maxResults: number,
-    publishedAt: Date
+    oldTotal: number
   ): Promise<PlaylistVideo[]> {
     const query: FilterQuery<any> = {
       channelId: channelId,
-      publishedAt: { $lte: publishedAt },
     };
     const projection = {
       _id: 1,
@@ -148,7 +144,7 @@ export class MongoTubeService implements TubeService {
       undefined,
       undefined,
       maxResults,
-      videoId !== "" ? 1 : undefined,
+      oldTotal,
       projection
     );
     return r.map((item) => {
@@ -182,16 +178,15 @@ export class MongoTubeService implements TubeService {
   searchVideos(
     itemSM: ItemSM,
     maxResults: number,
-    videoId: string,
-    publishedAt: Date,
+    oldTotal: number,
     duration: string
   ): Promise<Video[]> {
     const newQuery: any = {};
     const arrayKeys = Object.keys(itemSM);
     const arrayValues = Object.values(itemSM);
     arrayKeys.forEach((key, index) => {
-      if (key === "keyword") {
-        newQuery["title"] = { $regex: `.*${itemSM.keyword}.*`, $options: "i" };
+      if (key === "q") {
+        newQuery["title"] = { $regex: `.*${itemSM.q}.*`, $options: "i" };
       } else {
         if (arrayValues[index] !== undefined) {
           newQuery[key] = arrayValues[index];
@@ -214,7 +209,6 @@ export class MongoTubeService implements TubeService {
       default:
         break;
     }
-    newQuery["publishedAt"] = { $lte: publishedAt };
     const sort = { publishedAt: -1 };
     const query: FilterQuery<any> = newQuery;
     return findWithMap<any>(
@@ -224,22 +218,21 @@ export class MongoTubeService implements TubeService {
       undefined,
       sort,
       maxResults,
-      videoId !== "" ? 1 : undefined
+      oldTotal
     );
   }
   searchPlaylists(
     playlistSM: PlaylistSM,
     maxResults: number,
-    playlistId: string,
-    publishedAt: Date
+    oldTotal: number
   ): Promise<Playlist[]> {
     const newQuery: any = {};
     const arrayKeys = Object.keys(playlistSM);
     const arrayValues = Object.values(playlistSM);
     arrayKeys.forEach((key, index) => {
-      if (key === "keyword") {
+      if (key === "q") {
         newQuery["title"] = {
-          $regex: `.*${playlistSM.keyword}.*`,
+          $regex: `.*${playlistSM.q}.*`,
           $options: "i",
         };
       } else {
@@ -248,7 +241,6 @@ export class MongoTubeService implements TubeService {
         }
       }
     });
-    newQuery["publishedAt"] = { $lte: publishedAt };
     const sort = { publishedAt: -1 };
     const query: FilterQuery<any> = newQuery;
     return findWithMap<any>(
@@ -258,22 +250,21 @@ export class MongoTubeService implements TubeService {
       undefined,
       sort,
       maxResults,
-      playlistId !== "" ? 1 : undefined
+      oldTotal
     );
   }
   searchChannels(
     channelSM: ChannelSM,
     maxResults: number,
-    channelId: string,
-    publishedAt: Date
+    oldTotal: number
   ): Promise<Channel[]> {
     const newQuery: any = {};
     const arrayKeys = Object.keys(channelSM);
     const arrayValues = Object.values(channelSM);
     arrayKeys.forEach((key, index) => {
-      if (key === "keyword") {
+      if (key === "q") {
         newQuery["title"] = {
-          $regex: `.*${channelSM.keyword}.*`,
+          $regex: `.*${channelSM.q}.*`,
           $options: "i",
         };
       } else {
@@ -282,7 +273,6 @@ export class MongoTubeService implements TubeService {
         }
       }
     });
-    newQuery["publishedAt"] = { $lte: publishedAt };
     const sort = { publishedAt: -1 };
     const query: FilterQuery<any> = newQuery;
     return findWithMap<any>(
@@ -292,7 +282,41 @@ export class MongoTubeService implements TubeService {
       undefined,
       sort,
       maxResults,
-      channelId !== "" ? 1 : undefined
+      oldTotal
+    );
+  }
+  getRelatedVideo(
+    tags: string[],
+    maxResults: number,
+    oldTotal: number,
+    videoId: string
+  ): Promise<Video[]> {
+    const query: FilterQuery<any> = {
+      tags: { $in: tags },
+      _id: { $nin: [videoId] },
+    };
+    const sort = { publishedAt: -1 };
+    return findWithMap<Video>(
+      this.videosCollection,
+      query,
+      this.id,
+      undefined,
+      sort,
+      maxResults,
+      oldTotal
+    );
+  }
+  getPopularVideos(maxResults: number, oldTotal: number): Promise<Video[]> {
+    const query: FilterQuery<any> = {};
+    const sort = { publishedAt: -1 };
+    return findWithMap<Video>(
+      this.videosCollection,
+      undefined,
+      this.id,
+      undefined,
+      sort,
+      maxResults,
+      oldTotal
     );
   }
 }

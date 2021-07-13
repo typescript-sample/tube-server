@@ -18,9 +18,8 @@ export interface TubeService {
   getPlaylists(playlistIds: string[]): Promise<Playlist[]>;
   getChannelPlaylists(
     channelId: string,
-    playlistId: string,
-    maxResults: number,
-    publishedAt: Date
+    max: number,
+    oldTotal: number
   ): Promise<Playlist[]>;
   getVideos(videoId: string[]): Promise<Video[]>;
   getPlaylistVideo(id: string): Promise<PlaylistCollection>;
@@ -28,29 +27,32 @@ export interface TubeService {
   getPlaylistVideos(ids: string[]): Promise<PlaylistVideo[]>;
   getChannelVideos(
     channelId: string,
-    videoId: string,
     maxResults: number,
-    publishedAt: Date
+    oldTotal: number
   ): Promise<PlaylistVideo[]>;
   getCategory(regionCode: string): Promise<CategoryCollection>;
   saveCategory(category: CategoryCollection): Promise<number>;
   searchVideos(
     itemSM: ItemSM,
     maxResults: number,
-    videoId: string,
-    publishedAt: Date,
+    oldTotal: number,
     duration: string
   ): Promise<Video[]>;
   searchPlaylists(
     playlistSM: PlaylistSM,
     maxResults: number,
-    playlistId: string,
-    publishedAt: Date
+    oldTotal: number
   ): Promise<Playlist[]>;
   searchChannels(
     channelSM: ChannelSM,
     maxResults: number,
-    channelId: string,
-    publishedAt: Date
+    oldTotal: number
   ): Promise<Playlist[]>;
+  getRelatedVideo(
+    tags: string[],
+    maxResults: number,
+    oldTotal: number,
+    videoId: string
+  ): Promise<Video[]>;
+  getPopularVideos(maxResults: number, oldTotal: number): Promise<Video[]>;
 }

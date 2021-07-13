@@ -20,4 +20,6 @@ export function route(app: Application, ctx: ApplicationContext): void {
   app.get("/tube/searchVideos", tube.searchVideos);
   app.get("/tube/searchPlaylists", tube.searchPlaylists);
   app.get("/tube/searchChannels", tube.searchChannels);
+  app.get("/tube/related", tube.getRelatedVideos);
+  app.get("/tube/popular", tube.getPopularVideos);
 }

@@ -43,7 +43,7 @@ export interface SyncClient {
   getPlaylist(id: string): Promise<Playlist>;
   getChannelPlaylists(channelId: string, max?: number, nextPageToken?: string): Promise<ListResult<Playlist>>;
   getPlaylistVideos(playlistId: string, max?: number, nextPageToken?: string): Promise<ListResult<PlaylistVideo>>;
-  getVideos(ids: string[], noSnippet?: boolean): Promise<Video[]>;
+  getVideos(ids: string[]): Promise<Video[]>;
 }
 export interface SyncService {
   syncChannel(channelId: string): Promise<number>;
@@ -244,7 +244,7 @@ export class YoutubeClient implements VideoService {
     const regionParam = (sm.regionCode && sm.regionCode.length > 0 ? `&regionCode=${sm.regionCode}` : '');
     const pageToken = (nextPageToken ? `&pageToken=${nextPageToken}` : '');
     const maxResults = (max && max > 0 ? max : 50); // maximum is 50
-    const url = `https://www.googleapis.com/youtube/v3/search?key=${this.key}&part=snippet${regionParam}&q=${sm.keyword}&maxResults=${maxResults}${searchType}${searchDuration}${searchOrder}${pageToken}`;
+    const url = `https://www.googleapis.com/youtube/v3/search?key=${this.key}&part=snippet${regionParam}&q=${sm.q}&maxResults=${maxResults}${searchType}${searchDuration}${searchOrder}${pageToken}`;
     return this.httpRequest.get<YoutubeListResult<ListItem<SearchId, SearchSnippet, any>>>(url).then(res => fromYoutubeSearch(res));
   }
   searchVideos(sm: ItemSM, max?: number, nextPageToken?: string|number): Promise<ListResult<Item>> {
@@ -758,7 +758,7 @@ export async function syncUploads(uploads: string, client: SyncClient, repo: Syn
   }
   return { count: success, all, timestamp: last };
 }
-export function saveVideos(newVideos: PlaylistVideo[], getVideos?: (ids: string[], noSnippet?: boolean) => Promise<Video[]>, repo?: SyncRepository): Promise<number> {
+export function saveVideos(newVideos: PlaylistVideo[], getVideos?: (ids: string[]) => Promise<Video[]>, repo?: SyncRepository): Promise<number> {
   if (!newVideos || newVideos.length === 0) {
     return Promise.resolve(0);
   } else {

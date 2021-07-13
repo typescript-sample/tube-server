@@ -6,7 +6,7 @@ import { TubeController } from "./controllers/TubeController";
 import { MongoTubeService } from "./services/mongo/MongoTubeService";
 import { MongoVideoRepository } from "./sync/MongoSyncRepository";
 import { SyncController } from "./controllers/SyncController";
-import { DefaultSyncService, YoutubeClient } from "./video-plus";
+import { DefaultSyncService, YoutubeClient, SyncClient } from "./video-plus";
 import { PostgreVideoRepository } from "./sync/PostgreVideoRepository";
 
 export function createContext(db: Db, key: string): ApplicationContext {
