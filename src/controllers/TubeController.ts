@@ -1,9 +1,12 @@
-import { Request, Response } from "express";
+import e, { Request, Response } from "express";
 import { CategoryCollection } from "services/mongo/MongoTubeService";
 import {
+  Channel,
+  ChannelSM,
   ItemSM,
   ListResult,
   Playlist,
+  PlaylistSM,
   PlaylistVideo,
   Video,
   YoutubeClient,
@@ -14,21 +17,23 @@ export class TubeController {
   constructor(private tubeService: TubeService, private client: YoutubeClient) {
     this.getChannel = this.getChannel.bind(this);
     this.getChannels = this.getChannels.bind(this);
+    this.getPlaylists = this.getPlaylists.bind(this);
     this.getChannelPlaylists = this.getChannelPlaylists.bind(this);
-    this.getChannelsSync = this.getChannelsSync.bind(this);
     this.getPlaylistVideos = this.getPlaylistVideos.bind(this);
     this.getChannelVideos = this.getChannelVideos.bind(this);
     this.getCategory = this.getCategory.bind(this);
     this.getVideos = this.getVideos.bind(this);
     this.searchVideos = this.searchVideos.bind(this);
+    this.searchPlaylists = this.searchPlaylists.bind(this);
+    this.searchChannels = this.searchChannels.bind(this);
   }
   getChannel(req: Request, res: Response) {
-    const { channelId } = req.params;
-    if (!channelId.toString()) {
+    const { id } = req.params;
+    if (!id.toString()) {
       return res.status(400).send("Id cannot be empty");
     }
     this.tubeService
-      .getChannel(channelId)
+      .getChannel(id)
       .then((channel) => {
         if (channel) {
           res.status(200).json(channel);
@@ -39,39 +44,49 @@ export class TubeController {
       .catch((err) => res.status(500).send(err));
   }
   getChannels(req: Request, res: Response) {
-    const { channelId } = req.query;
-    if (!channelId.toString()) {
-      return res.status(500).send("require channelId");
+    const { id } = req.query;
+    if (!id.toString()) {
+      return res.status(500).send("require id");
     } else {
-      const channelIdsArray = channelId.toString().split(",");
-      this.tubeService
+      const channelIdsArray = id.toString().split(",");
+      return this.tubeService
         .getChannels(channelIdsArray)
-        .then((channels) => res.status(200).json(channels))
+        .then((channels) => {
+          const result: ListResult<Channel> = {
+            list: channels,
+            total: channels.length,
+            limit: channels.length,
+          };
+          return res.status(200).json(result);
+        })
         .catch((err) => res.status(500).json(err));
     }
   }
-  getChannelsSync(req: Request, res: Response) {
-    const { id } = req.params;
-    if (!id || id.length === 0) {
-      return res.status(400).send("Id cannot be empty");
+  getPlaylists(req: Request, res: Response) {
+    const { id } = req.query;
+    if (!id.toString()) {
+      return res.status(500).send("require id");
+    } else {
+      const playlistIdArray = id.toString().split(",");
+      return this.tubeService
+        .getPlaylists(playlistIdArray)
+        .then((playlists) => {
+          const results: ListResult<Playlist> = {
+            list: playlists,
+            total: playlists.length,
+            limit: playlists.length,
+          };
+          return res.status(200).json(results);
+        })
+        .catch((err) => res.status(500).json(err));
     }
-    this.tubeService
-      .getChannelSync(id)
-      .then((channel) => {
-        if (channel) {
-          res.status(200).json(channel);
-        } else {
-          res.status(404).json(null);
-        }
-      })
-      .catch((err) => res.status(500).send(err));
   }
   getChannelPlaylists(req: Request, res: Response) {
-    const { channelId, maxResults, nextPageToken } = req.query;
+    const { id, maxResults, nextPageToken } = req.query;
     let next = new Date();
     let playlistId = "";
-    if (!channelId.toString()) {
-      return res.status(500).send("require channelId");
+    if (!id.toString()) {
+      return res.status(500).send("require id");
     } else {
       if (nextPageToken) {
         const arr = nextPageToken.toString().split("|");
@@ -83,7 +98,7 @@ export class TubeController {
       }
       const max = maxResults ? Number(maxResults) : 10;
       this.tubeService
-        .getChannelPlaylists(channelId.toString(), playlistId, max, next)
+        .getChannelPlaylists(id.toString(), playlistId, max, next)
         .then((playlists) => {
           if (playlists.length > 0) {
             const result: ListResult<Playlist> = {
@@ -188,11 +203,11 @@ export class TubeController {
     }
   }
   getVideos(req: Request, res: Response) {
-    const { videoId } = req.query;
-    if (!videoId.toString()) {
+    const { id } = req.query;
+    if (!id.toString()) {
       return res.status(500).send("require videoId");
     } else {
-      const arrayVideoId = videoId.toString().split(",");
+      const arrayVideoId = id.toString().split(",");
       this.tubeService
         .getVideos(arrayVideoId)
         .then((videos) => res.status(200).json(videos))
@@ -200,14 +215,112 @@ export class TubeController {
     }
   }
   searchVideos(req: Request, res: Response) {
-    const { keyword, channelId, maxResults } = req.query;
+    const { keyword, channelId, limit, nextPageToken, duration } = req.query;
     const itemSM: ItemSM = {
       keyword: keyword ? keyword.toString() : "",
       channelId: channelId ? channelId.toString() : undefined,
     };
+    let next = new Date();
+    let videoId = "";
+    let durationVideo = duration ? duration.toString() : "any";
+    if (nextPageToken) {
+      const arr = nextPageToken.toString().split("|");
+      videoId = arr[0];
+      next = new Date(arr[1]);
+      if (arr.length < 2 || new Date(arr[1]).toString() === "Invalid Date") {
+        return res.status(500).send("Next Page Token is not valid");
+      }
+    }
+    const max = limit ? Number(limit) : 10;
     this.tubeService
-      .searchVideos(itemSM, Number(maxResults))
-      .then((results) => res.status(200).json(results))
+      .searchVideos(itemSM, max, videoId, next, durationVideo)
+      .then((results) => {
+        if (results.length > 0) {
+          const listResult: ListResult<Playlist> = {
+            list: results,
+            nextPageToken: `${results[results.length - 1].id}|${results[
+              results.length - 1
+            ].publishedAt.toISOString()}`,
+            limit: results.length,
+          };
+          return res.status(200).json(listResult);
+        } else {
+          return res.status(200).json([]);
+        }
+      })
+      .catch((err) => res.status(500).json(err));
+  }
+  searchPlaylists(req: Request, res: Response) {
+    const { keyword, channelId, limit, nextPageToken } = req.query;
+    const playlistSM: PlaylistSM = {
+      keyword: keyword ? keyword.toString() : "",
+      channelId: channelId ? channelId.toString() : undefined,
+    };
+    let next = new Date();
+    let playlistId = "";
+    if (nextPageToken) {
+      const arr = nextPageToken.toString().split("|");
+      playlistId = arr[0];
+      next = new Date(arr[1]);
+      if (arr.length < 2 || new Date(arr[1]).toString() === "Invalid Date") {
+        return res.status(500).send("Next Page Token is not valid");
+      }
+    }
+    const max = limit ? Number(limit) : 10;
+    this.tubeService
+      .searchPlaylists(playlistSM, max, playlistId, next)
+      .then((results) => {
+        if (results.length > 0) {
+          const listResult: ListResult<Playlist> = {
+            list: results,
+            nextPageToken: `${results[results.length - 1].id}|${results[
+              results.length - 1
+            ].publishedAt.toISOString()}`,
+            limit: results.length,
+          };
+          return res.status(200).json(listResult);
+        } else {
+          return res.status(200).json([]);
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+        return res.status(500).json(err);
+      });
+  }
+  searchChannels(req: Request, res: Response) {
+    const { keyword, channelId, limit, nextPageToken } = req.query;
+    const channelSM: ChannelSM = {
+      keyword: keyword ? keyword.toString() : "",
+      channelId: channelId ? channelId.toString() : undefined,
+    };
+    let next = new Date();
+    let playlistId = "";
+    if (nextPageToken) {
+      const arr = nextPageToken.toString().split("|");
+      playlistId = arr[0];
+      next = new Date(arr[1]);
+      if (arr.length < 2 || new Date(arr[1]).toString() === "Invalid Date") {
+        return res.status(500).send("Next Page Token is not valid");
+      }
+    }
+    const max = limit ? Number(limit) : 10;
+    this.tubeService
+      .searchPlaylists(channelSM, max, playlistId, next)
+      .then((results) => {
+        if (results.length > 0) {
+          const listResult: ListResult<Channel> = {
+            list: results,
+            nextPageToken: `${results[results.length - 1].id}|${results[
+              results.length - 1
+            ].publishedAt.toISOString()}`,
+            limit: results.length,
+          };
+          return res.status(200).json(listResult);
+        } else {
+          return res.status(200).json([]);
+        }
+      })
       .catch((err) => res.status(500).json(err));
   }
 }

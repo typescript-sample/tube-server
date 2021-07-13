@@ -1,17 +1,17 @@
 import { Collection, Db, FilterQuery } from "mongodb";
 import {
   Channel,
+  ChannelSM,
   ChannelSync,
   ItemSM,
   Playlist,
   PlaylistCollection,
+  PlaylistSM,
   PlaylistVideo,
   Video,
 } from "../../video-plus";
 import { TubeService } from "../TubeService";
 import { findOne, findWithMap, upsert } from "./mongo";
-import { buildQuery } from "./query";
-import { SearchBuilder } from "./SearchBuilder";
 
 export interface CategoryCollection {
   id: string;
@@ -41,9 +41,9 @@ export class MongoTubeService implements TubeService {
     const query: FilterQuery<any> = { _id: { $in: channelIds } };
     return findWithMap<Channel>(this.channelsCollection, query, this.id);
   }
-  getChannelSync(channelId: string): Promise<ChannelSync> {
-    const query: FilterQuery<any> = { _id: channelId };
-    return findOne<ChannelSync>(this.channelSyncCollection, query, this.id);
+  getPlaylists(playlistIds: string[]): Promise<Playlist[]> {
+    const query: FilterQuery<any> = { _id: { $in: playlistIds } };
+    return findWithMap<Channel>(this.playlistCollection, query, this.id);
   }
   getChannelPlaylists(
     channelId: string,
@@ -179,27 +179,120 @@ export class MongoTubeService implements TubeService {
   saveCategory(category: CategoryCollection): Promise<number> {
     return upsert(this.categoryCollection, category, this.id);
   }
-  // searchVideos(itemSM: ItemSM, maxResults: number): Promise<any> {
-  //   const builder = new SearchBuilder<Video, ItemSM>(
-  //     this.videosCollection,
-  //     buildQuery,
-  //     undefined
-  //   );
-  //   return builder.search(itemSM, maxResults);
-  // }
-  searchVideos(itemSM: ItemSM, maxResults: number): Promise<Video[]> {
-    const query: FilterQuery<any> = {
-      title: { $text: { $search: itemSM.keyword } },
-    };
-    console.log(query);
-    return findWithMap<Video>(
+  searchVideos(
+    itemSM: ItemSM,
+    maxResults: number,
+    videoId: string,
+    publishedAt: Date,
+    duration: string
+  ): Promise<Video[]> {
+    const newQuery: any = {};
+    const arrayKeys = Object.keys(itemSM);
+    const arrayValues = Object.values(itemSM);
+    arrayKeys.forEach((key, index) => {
+      if (key === "keyword") {
+        newQuery["title"] = { $regex: `.*${itemSM.keyword}.*`, $options: "i" };
+      } else {
+        if (arrayValues[index] !== undefined) {
+          newQuery[key] = arrayValues[index];
+        }
+      }
+    });
+    switch (duration) {
+      case "any":
+        newQuery["duration"] = { $gt: 0 };
+        break;
+      case "short":
+        newQuery["duration"] = { $gt: 0, $lte: 240 };
+        break;
+      case "medium":
+        newQuery["duration"] = { $gt: 240, $lte: 1200 };
+        break;
+      case "long":
+        newQuery["duration"] = { $gt: 1200 };
+        break;
+      default:
+        break;
+    }
+    newQuery["publishedAt"] = { $lte: publishedAt };
+    const sort = { publishedAt: -1 };
+    const query: FilterQuery<any> = newQuery;
+    return findWithMap<any>(
       this.videosCollection,
       query,
+      this.id,
       undefined,
+      sort,
+      maxResults,
+      videoId !== "" ? 1 : undefined
+    );
+  }
+  searchPlaylists(
+    playlistSM: PlaylistSM,
+    maxResults: number,
+    playlistId: string,
+    publishedAt: Date
+  ): Promise<Playlist[]> {
+    const newQuery: any = {};
+    const arrayKeys = Object.keys(playlistSM);
+    const arrayValues = Object.values(playlistSM);
+    arrayKeys.forEach((key, index) => {
+      if (key === "keyword") {
+        newQuery["title"] = {
+          $regex: `.*${playlistSM.keyword}.*`,
+          $options: "i",
+        };
+      } else {
+        if (arrayValues[index] !== undefined) {
+          newQuery[key] = arrayValues[index];
+        }
+      }
+    });
+    newQuery["publishedAt"] = { $lte: publishedAt };
+    const sort = { publishedAt: -1 };
+    const query: FilterQuery<any> = newQuery;
+    return findWithMap<any>(
+      this.playlistCollection,
+      query,
+      this.id,
       undefined,
+      sort,
+      maxResults,
+      playlistId !== "" ? 1 : undefined
+    );
+  }
+  searchChannels(
+    channelSM: ChannelSM,
+    maxResults: number,
+    channelId: string,
+    publishedAt: Date
+  ): Promise<Channel[]> {
+    const newQuery: any = {};
+    const arrayKeys = Object.keys(channelSM);
+    const arrayValues = Object.values(channelSM);
+    arrayKeys.forEach((key, index) => {
+      if (key === "keyword") {
+        newQuery["title"] = {
+          $regex: `.*${channelSM.keyword}.*`,
+          $options: "i",
+        };
+      } else {
+        if (arrayValues[index] !== undefined) {
+          newQuery[key] = arrayValues[index];
+        }
+      }
+    });
+    newQuery["publishedAt"] = { $lte: publishedAt };
+    const sort = { publishedAt: -1 };
+    const query: FilterQuery<any> = newQuery;
+    return findWithMap<any>(
+      this.channelsCollection,
+      query,
+      this.id,
       undefined,
-      undefined,
-      maxResults
+      sort,
+      maxResults,
+      channelId !== "" ? 1 : undefined
     );
   }
 }
