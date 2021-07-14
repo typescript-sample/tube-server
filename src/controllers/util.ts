@@ -11,7 +11,17 @@ export function handleError(err: any, res: Response, lg?: (msg: string, ctx?: an
     res.status(500).end(err);
   }
 }
-
+export function queryRequiredParams(req: Request, res: Response, name: string, split?: string): string[] {
+  const v = req.query[name].toString();
+  if (!v || v.length === 0) {
+    res.status(400).end(`'${name}' cannot be empty`);
+    return undefined;
+  }
+  if (!split) {
+    split = ',';
+  }
+  return v.split(split);
+}
 export function queryParams(req: Request, name: string, d?: string[], split?: string): string[] {
   const query = req.query[name];
   const v = query && query.toString();
@@ -19,7 +29,7 @@ export function queryParams(req: Request, name: string, d?: string[], split?: st
     return d;
   }
   if (!split) {
-    split = ','
+    split = ',';
   }
   return v.split(split);
 }
@@ -33,7 +43,7 @@ export function queryParam(req: Request, res: Response, name: string): string {
   return v;
 }
 
-export function queryGetNumber(req: Request, res: Response, name: string, d?: number): number {
+export function queryNumber(req: Request, res: Response, name: string, d?: number): number {
   const field = req.query[name];
   const v = field.toString();
   if (!v || v.length === 0) {
@@ -46,17 +56,6 @@ export function queryGetNumber(req: Request, res: Response, name: string, d?: nu
   return n;
 }
 
-export function params(req: Request, name: string, d?: string[], split?: string): string[] {
-  const v = req.params[name];
-  if (!v || v.length === 0) {
-    return d;
-  }
-  if (!split) {
-    split = ','
-  }
-  return v.split(split);
-}
-
 export function param(req: Request, res: Response, name: string): string {
   const v = req.params[name];
   if (!v || v.length === 0) {
@@ -65,7 +64,27 @@ export function param(req: Request, res: Response, name: string): string {
   }
   return v;
 }
-
+export function params(req: Request, name: string, d?: string[], split?: string): string[] {
+  const v = req.params[name];
+  if (!v || v.length === 0) {
+    return d;
+  }
+  if (!split) {
+    split = ',';
+  }
+  return v.split(split);
+}
+export function getRequiredParameters(req: Request, res: Response, name: string, split?: string): string[] {
+  const v = req.params[name];
+  if (!v || v.length === 0) {
+    res.status(400).end(`'${name}' cannot be empty`);
+    return undefined;
+  }
+  if (!split) {
+    split = ',';
+  }
+  return v.split(split);
+}
 export function getRequiredNumber(req: Request, res: Response, name: string): number {
   const v = req.params[name];
   if (!v || v.length === 0) {
@@ -79,8 +98,7 @@ export function getRequiredNumber(req: Request, res: Response, name: string): nu
   const n = parseFloat(v);
   return n;
 }
-
-export function getNumber(req: Request, res: Response, name: string, d?: number): number {
+export function getNumber(req: Request, name: string, d?: number): number {
   const v = req.params[name];
   if (!v || v.length === 0) {
     return d;
@@ -91,7 +109,7 @@ export function getNumber(req: Request, res: Response, name: string, d?: number)
   const n = parseFloat(v);
   return n;
 }
-export function getInteger(req: Request, res: Response, name: string, d?: number): number {
+export function getInteger(req: Request, name: string, d?: number): number {
   const v = req.params[name];
   if (!v || v.length === 0) {
     return d;
@@ -109,14 +127,14 @@ export function getRequiredDate(req: Request, res: Response, name: string): Date
     res.status(400).end(`'${name}' cannot be empty`);
     return undefined;
   }
-  const d = new Date(v);
-  if (d.toString() === 'Invalid Date') {
+  const date = new Date(v);
+  if (date.toString() === 'Invalid Date') {
     res.status(400).end(`'${name}' must be a date`);
     return undefined;
   }
-  return d;
+  return date;
 }
-export function getDate(req: Request, res: Response, name: string, d?: Date): Date {
+export function getDate(req: Request, name: string, d?: Date): Date {
   const v = req.params[name];
   if (!v || v.length === 0) {
     return d;

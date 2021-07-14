@@ -47,7 +47,7 @@ export interface SyncClient {
   getPlaylist(id: string): Promise<Playlist>;
   getChannelPlaylists(channelId: string, max?: number, nextPageToken?: string): Promise<ListResult<Playlist>>;
   getPlaylistVideos(playlistId: string, max?: number, nextPageToken?: string): Promise<ListResult<PlaylistVideo>>;
-  getVideos(ids: string[], fields?: string[],noSnippet?: boolean): Promise<Video[]>;
+  getVideos(ids: string[]): Promise<Video[]>;
 }
 export interface SyncService {
   syncChannel(channelId: string): Promise<number>;

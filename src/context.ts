@@ -1,5 +1,5 @@
-import { TubeController } from "./controllers/TubeController";
-import { SyncController } from "./controllers/SyncController";
+import { SyncController } from './controllers/SyncController';
+import { TubeController } from './controllers/TubeController';
 
 export interface ApplicationContext {
   syncController?: SyncController;
