@@ -28,6 +28,10 @@ export interface PlaylistCollection {
   id: string;
   videos: string[];
 }
+export interface CategoryCollection {
+  id: string;
+  data: VideoCategory[];
+}
 export interface SyncRepository {
   getChannelSync(channelId: string): Promise<ChannelSync>;
   saveChannel(channel: Channel): Promise<number>;
@@ -43,7 +47,7 @@ export interface SyncClient {
   getPlaylist(id: string): Promise<Playlist>;
   getChannelPlaylists(channelId: string, max?: number, nextPageToken?: string): Promise<ListResult<Playlist>>;
   getPlaylistVideos(playlistId: string, max?: number, nextPageToken?: string): Promise<ListResult<PlaylistVideo>>;
-  getVideos(ids: string[]): Promise<Video[]>;
+  getVideos(ids: string[], fields?: string[],noSnippet?: boolean): Promise<Video[]>;
 }
 export interface SyncService {
   syncChannel(channelId: string): Promise<number>;
@@ -54,23 +58,23 @@ export interface SyncService {
 
 export interface VideoService {
   getCagetories(regionCode?: string): Promise<VideoCategory[]>;
-  getChannels(ids: string[]): Promise<Channel[]>;
-  getChannel(id: string): Promise<Channel>;
-  getChannelPlaylists(channelId: string, max?: number, nextPageToken?: string): Promise<ListResult<Playlist>>;
-  getPlaylists(ids: string[]): Promise<Playlist[]>;
-  getPlaylist(id: string): Promise<Playlist>;
-  getChannelVideos(channelId: string, max?: number, nextPageToken?: string): Promise<ListResult<PlaylistVideo>>;
-  getPlaylistVideos(playlistId: string, max?: number, nextPageToken?: string): Promise<ListResult<PlaylistVideo>>;
-  getPopularVideos(regionCode?: string, videoCategoryId?: string, max?: number, nextPageToken?: string): Promise<ListResult<Video>>;
-  getPopularVideosByRegion(regionCode?: string, max?: number, nextPageToken?: string): Promise<ListResult<Video>>;
-  getPopularVideosByCategory(videoCategoryId?: string, max?: number, nextPageToken?: string): Promise<ListResult<Video>>;
-  getVideos(ids: string[], noSnippet?: boolean): Promise<Video[]>;
-  getVideo(id: string, noSnippet?: boolean): Promise<Video>;
-  search(sm: ItemSM, max?: number, nextPageToken?: string|number): Promise<ListResult<Item>>;
-  getRelatedVideos?(videoId: string, max?: number, nextPageToken?: string): Promise<ListResult<Item>>;
-  searchVideos?(sm: ItemSM, max?: number, nextPageToken?: string|number): Promise<ListResult<Item>>;
-  searchPlaylists?(sm: PlaylistSM, max?: number, nextPageToken?: string|number): Promise<ListResult<Playlist>>;
-  searchChannels?(sm: ChannelSM, max?: number, nextPageToken?: string|number): Promise<ListResult<Channel>>;
+  getChannels(ids: string[], fields?: string[]): Promise<Channel[]>;
+  getChannel(id: string, fields?: string[]): Promise<Channel>;
+  getChannelPlaylists(channelId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Playlist>>;
+  getPlaylists(ids: string[], fields?: string[]): Promise<Playlist[]>;
+  getPlaylist(id: string, fields?: string[]): Promise<Playlist>;
+  getChannelVideos(channelId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>>;
+  getPlaylistVideos(playlistId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>>;
+  getPopularVideos(regionCode?: string, videoCategoryId?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>>;
+  getPopularVideosByRegion(regionCode?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>>;
+  getPopularVideosByCategory(videoCategoryId?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>>;
+  getVideos(ids: string[], fields?: string[], noSnippet?: boolean): Promise<Video[]>;
+  getVideo(id: string, fields?: string[], noSnippet?: boolean): Promise<Video>;
+  search(sm: ItemSM, max?: number, nextPageToken?: string|number, fields?: string[]): Promise<ListResult<Item>>;
+  getRelatedVideos?(videoId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>>;
+  searchVideos?(sm: ItemSM, max?: number, nextPageToken?: string|number, fields?: string[]): Promise<ListResult<Item>>;
+  searchPlaylists?(sm: PlaylistSM, max?: number, nextPageToken?: string|number, fields?: string[]): Promise<ListResult<Playlist>>;
+  searchChannels?(sm: ChannelSM, max?: number, nextPageToken?: string|number, fields?: string[]): Promise<ListResult<Channel>>;
   /**
    * @param videoId
    * @param order relevance, time (default)
@@ -207,7 +211,7 @@ export class YoutubeClient implements VideoService {
   getPopularVideosByCategory(videoCategoryId?: string, max?: number, nextPageToken?: string): Promise<ListResult<Video>> {
     return this.getPopularVideos(undefined, videoCategoryId, max, nextPageToken);
   }
-  getVideos(ids: string[], noSnippet?: boolean): Promise<Video[]> {
+  getVideos(ids: string[], fields?: string[], noSnippet?: boolean): Promise<Video[]> {
     if (!ids || ids.length === 0) {
       return Promise.resolve([]);
     }
@@ -221,8 +225,8 @@ export class YoutubeClient implements VideoService {
       return r.list;
     });
   }
-  getVideo(id: string, noSnippet?: boolean): Promise<Video> {
-    return this.getVideos([id], noSnippet).then(res => res && res.length > 0 ? res[0] : null);
+  getVideo(id: string, fields?: string[], noSnippet?: boolean): Promise<Video> {
+    return this.getVideos([id], fields, noSnippet).then(res => res && res.length > 0 ? res[0] : null);
   }
   getCommentThreads(videoId: string, sort?: string, max?: number, nextPageToken?: string): Promise<ListResult<CommentThead>> {
     const orderParam = (sort === 'relevance' ? `&order=${sort}` : '');
@@ -294,10 +298,13 @@ export class YoutubeClient implements VideoService {
     });
   }
   getRelatedVideos(videoId: string, max?: number, nextPageToken?: string): Promise<ListResult<Item>> {
+    return this.getPopularVideos('US').then(list => list as any);
+    /*
     const maxResults = (max && max > 0 ? max : 12);
     const pageToken = (nextPageToken ? `&pageToken=${nextPageToken}` : '');
-    const url = `https://youtube.googleapis.com/youtube/v3/search?key=${this.key}&relatedToVideoId=${videoId}&type=video&maxResults=${maxResults}${pageToken}&part=snippet`;
+    const url = `https://youtube.googleapis.com/youtube/v3/search?key=${this.key}&relatedToVideoId=${videoId}&type=video&regionCode=VN&maxResults=${maxResults}${pageToken}&part=snippet`;
     return this.httpRequest.get<YoutubeListResult<ListItem<SearchId, SearchSnippet, any>>>(url).then(res => fromYoutubeSearch(res));
+    */
   }
 }
 export function fromYoutubeCategories(res: YoutubeListResult<ListItem<string, CategorySnippet, any>>): VideoCategory[] {
@@ -575,21 +582,21 @@ export function removeCache<T>(cache: Cache<T>, max: number): number {
 }
 
 export class DefaultSyncService implements SyncService {
-  constructor(private client: SyncClient, private repo: SyncRepository) {
+  constructor(private client: SyncClient, private repo: SyncRepository, private log?: (msg: any, ctx?: any) => void) {
     this.syncChannel = this.syncChannel.bind(this);
     this.syncChannels = this.syncChannel.bind(this);
     this.syncPlaylist = this.syncPlaylist.bind(this);
     this.syncPlaylists = this.syncPlaylists.bind(this);
   }
   syncChannel(channelId: string): Promise<number> {
-    return syncChannel(channelId, this.client, this.repo);
+    return syncChannel(channelId, this.client, this.repo, this.log);
   }
   syncChannels(channelIds: string[]): Promise<number> {
     return syncChannels(channelIds, this.client, this.repo);
   }
   syncPlaylist(playlistId: string, level?: number): Promise<number> {
     const syncVideos = level && level < 2 ? false : true;
-    return syncPlaylist(playlistId, syncVideos, this.client, this.repo);
+    return syncPlaylist(playlistId, syncVideos, this.client, this.repo, this.log);
   }
   syncPlaylists(playlistIds: string[], level?: number): Promise<number> {
     const syncVideos = level && level < 2 ? false : true;
@@ -607,7 +614,7 @@ export function syncChannels(channelIds: string[], client: SyncClient, repo: Syn
     return sum;
   });
 }
-export async function syncChannel(channelId: string, client: SyncClient, repo: SyncRepository): Promise<number> {
+export async function syncChannel(channelId: string, client: SyncClient, repo: SyncRepository, log?: (msg: any, ctx?: any) => void): Promise<number> {
   return repo.getChannelSync(channelId).then(channelSync => {
     const res = client.getChannel(channelId).then(channel => {
       if (!channel) {
@@ -617,6 +624,11 @@ export async function syncChannel(channelId: string, client: SyncClient, repo: S
       }
     });
     return res;
+  }).catch(err => {
+    if (log) {
+      log(err);
+    }
+    throw err;
   });
 }
 export function checkAndSyncUploads(channel: Channel, channelSync: ChannelSync, client: SyncClient, repo: SyncRepository): Promise<number> {
@@ -656,14 +668,21 @@ export function syncPlaylists(playlistIds: string[], syncVideos: boolean, client
     return sum;
   });
 }
-export async function syncPlaylist(playlistId: string, syncVideos: boolean, client: SyncClient, repo: SyncRepository): Promise<number> {
-  const res = await syncPlaylistVideos(playlistId, syncVideos, client, repo);
-  const playlist = await client.getPlaylist(playlistId);
-  playlist.itemCount = playlist.count;
-  playlist.count = res.count;
-  await repo.savePlaylist(playlist);
-  await repo.savePlaylistVideos(playlistId, res.videos);
-  return res.success;
+export async function syncPlaylist(playlistId: string, syncVideos: boolean, client: SyncClient, repo: SyncRepository, log?: (msg: any, ctx?: any) => void): Promise<number> {
+  try {
+    const res = await syncPlaylistVideos(playlistId, syncVideos, client, repo);
+    const playlist = await client.getPlaylist(playlistId);
+    playlist.itemCount = playlist.count;
+    playlist.count = res.count;
+    await repo.savePlaylist(playlist);
+    await repo.savePlaylistVideos(playlistId, res.videos);
+    return res.success;
+  } catch (err) {
+    if (log) {
+      log(err);
+    }
+    throw err;
+  }
 }
 
 export interface VideoResult {
@@ -758,7 +777,7 @@ export async function syncUploads(uploads: string, client: SyncClient, repo: Syn
   }
   return { count: success, all, timestamp: last };
 }
-export function saveVideos(newVideos: PlaylistVideo[], getVideos?: (ids: string[]) => Promise<Video[]>, repo?: SyncRepository): Promise<number> {
+export function saveVideos(newVideos: PlaylistVideo[], getVideos?: (ids: string[], fields?: string[], noSnippet?: boolean) => Promise<Video[]>, repo?: SyncRepository): Promise<number> {
   if (!newVideos || newVideos.length === 0) {
     return Promise.resolve(0);
   } else {

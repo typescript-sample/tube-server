@@ -6,15 +6,14 @@ import { TubeController } from "./controllers/TubeController";
 import { MongoTubeService } from "./services/mongo/MongoTubeService";
 import { MongoVideoRepository } from "./sync/MongoSyncRepository";
 import { SyncController } from "./controllers/SyncController";
-import { DefaultSyncService, YoutubeClient, SyncClient } from "./video-plus";
-import { PostgreVideoRepository } from "./sync/PostgreVideoRepository";
+import { DefaultSyncService, YoutubeClient } from "./video-plus";
+import { log } from "./controllers/util";
 
 export function createContext(db: Db, key: string): ApplicationContext {
   const httpRequest = new HttpRequest(axios);
   const client = new YoutubeClient(key, httpRequest);
   const tubeService = new MongoTubeService(db);
-  const tubeController = new TubeController(tubeService, client);
-  // const videoRepository = new PostgreVideoRepository(db);
+  const tubeController = new TubeController(tubeService, client, log);
   const videoRepository = new MongoVideoRepository(db);
   const syncService = new DefaultSyncService(client, videoRepository);
   const syncController = new SyncController(syncService);

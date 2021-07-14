@@ -1,40 +1,31 @@
-import e, { Request, Response } from "express";
-import { CategoryCollection } from "services/mongo/MongoTubeService";
-import {
-  Channel,
-  ChannelSM,
-  ItemSM,
-  ListResult,
-  Playlist,
-  PlaylistSM,
-  PlaylistVideo,
-  Video,
-  YoutubeClient,
-} from "video-plus";
-import { TubeService } from "../services/TubeService";
+import { Request, Response } from "express";
+import { handleError, queryParam, queryGetNumber, queryParams } from "./util";
+import { CategoryCollection, ChannelSM, ItemSM, PlaylistSM, VideoCategory, YoutubeClient } from "video-plus";
+import { MongoTubeService } from "services/mongo/MongoTubeService";
 
 export class TubeController {
-  constructor(private tubeService: TubeService, private client: YoutubeClient) {
+  constructor(private videoService: MongoTubeService, private client: YoutubeClient, private log: (msg: any, ctx?: any) => void) {
     this.getChannel = this.getChannel.bind(this);
     this.getChannels = this.getChannels.bind(this);
+    this.getPlaylist = this.getPlaylist.bind(this);
     this.getPlaylists = this.getPlaylists.bind(this);
+    this.getVideo = this.getVideo.bind(this);
+    this.getVideos = this.getVideos.bind(this);
     this.getChannelPlaylists = this.getChannelPlaylists.bind(this);
     this.getPlaylistVideos = this.getPlaylistVideos.bind(this);
     this.getChannelVideos = this.getChannelVideos.bind(this);
     this.getCategory = this.getCategory.bind(this);
-    this.getVideos = this.getVideos.bind(this);
     this.searchVideos = this.searchVideos.bind(this);
     this.searchPlaylists = this.searchPlaylists.bind(this);
     this.searchChannels = this.searchChannels.bind(this);
     this.getRelatedVideos = this.getRelatedVideos.bind(this);
     this.getPopularVideos = this.getPopularVideos.bind(this);
+    this.getPopularVideosByCategory = this.getPopularVideosByCategory.bind(this);
+    this.getPopularVideosByRegion = this.getPopularVideosByRegion.bind(this);
   }
   getChannel(req: Request, res: Response) {
-    const { id } = req.params;
-    if (!id.toString()) {
-      return res.status(400).send("Id cannot be empty");
-    }
-    this.tubeService
+    const id = queryParam(req, res, "id");
+    this.videoService
       .getChannel(id)
       .then((channel) => {
         if (channel) {
@@ -43,331 +34,231 @@ export class TubeController {
           res.status(404).json(null);
         }
       })
-      .catch((err) => res.status(500).send(err));
+      .catch((err) => handleError(err, res));
   }
   getChannels(req: Request, res: Response) {
-    const { id } = req.query;
-    if (!id.toString()) {
-      return res.status(500).send("require id");
-    } else {
-      const channelIdsArray = id.toString().split(",");
-      return this.tubeService
+    const id = queryParam(req, res, "id");
+    if (id) {
+      const channelIdsArray = id.split(",");
+      return this.videoService
         .getChannels(channelIdsArray)
         .then((channels) => {
-          const result: ListResult<Channel> = {
-            list: channels,
-            total: channels.length,
-            limit: channels.length,
-          };
-          return res.status(200).json(result);
+          return res.status(200).json(channels);
         })
-        .catch((err) => res.status(500).json(err));
+        .catch((err) => handleError(err, res));
+    }
+  }
+  getPlaylist(req: Request, res: Response) {
+    const id = queryParam(req, res, "id");
+    if (id) {
+      return this.videoService
+        .getPlaylists([id])
+        .then((playlist) => {
+          return res.status(200).json(playlist);
+        })
+        .catch((err) => handleError(err, res));
     }
   }
   getPlaylists(req: Request, res: Response) {
-    const { id } = req.query;
-    if (!id.toString()) {
-      return res.status(500).send("require id");
-    } else {
-      const playlistIdArray = id.toString().split(",");
-      return this.tubeService
+    const id = queryParam(req, res, "id");
+    if (id) {
+      const playlistIdArray = id.split(",");
+      return this.videoService
         .getPlaylists(playlistIdArray)
         .then((playlists) => {
-          const results: ListResult<Playlist> = {
-            list: playlists,
-            total: playlists.length,
-            limit: playlists.length,
-          };
-          return res.status(200).json(results);
+          return res.status(200).json(playlists);
         })
-        .catch((err) => res.status(500).json(err));
+        .catch((err) => handleError(err, res));
     }
   }
   getChannelPlaylists(req: Request, res: Response) {
-    const { id, limit, nextPageToken } = req.query;
-    let oldTotal = 0;
-    if (!id.toString()) {
-      return res.status(500).send("require id");
-    } else {
-      const max = limit ? Number(limit) : 10;
-      if (nextPageToken) {
-        const arr = nextPageToken.toString().split("|");
-        if (arr.length < 2 || new Date(arr[2]).toString() === "Invalid Date") {
-          return res.status(500).send("Next Page Token is not valid");
-        }
-        oldTotal = Number(arr[1]);
-      }
-      this.tubeService
-        .getChannelPlaylists(id.toString(), max, oldTotal)
-        .then((playlists) => {
-          if (playlists.length > 0) {
-            const result: ListResult<Playlist> = {
-              list: playlists,
-              nextPageToken: `${playlists[playlists.length - 1].id}|${
-                oldTotal + max
-              }`,
-            };
-            return res.status(200).json(result);
-          } else {
-            return res.status(200).json([]);
-          }
-        });
+    const id = queryParam(req, res, "id");
+    if (id) {
+      const limit = queryGetNumber(req, res, "limit", 10);
+      const { nextPageToken } = req.query;
+      const token = handleToken(res, nextPageToken);
+      this.videoService.getChannelPlaylists(id.toString(), limit, token.oldTotal.toString()).then((result) => {
+        return res.status(200).json(result);
+      });
     }
   }
   getPlaylistVideos(req: Request, res: Response) {
-    const { playlistId, maxResults, nextPageToken } = req.query;
-    const max = maxResults ? Number(maxResults) : 10;
-    this.tubeService
-      .getPlaylistVideo(playlistId.toString())
-      .then((item) => {
-        let next: number = 0;
-        let checkNext: boolean = false;
-        if (nextPageToken) {
-          next = item.videos.indexOf(nextPageToken.toString()) + 1;
-          if (
-            item.videos.indexOf(nextPageToken.toString()) !==
-            item.videos.length - 1
-          ) {
-            checkNext = true;
-          }
-        }
-        const ids = item.videos.slice(next, max + next);
-        this.tubeService
-          .getPlaylistVideos(ids)
-          .then((playlistVideo) => {
-            const result: ListResult<PlaylistVideo> = {
-              list: playlistVideo,
-              nextPageToken: checkNext ? undefined : ids[ids.length - 1],
-              total: item.videos.length,
-              limit: item.videos.length,
-            };
-            res.status(200).json(result);
-          })
-          .catch((err) => res.status(500).json(err));
-      })
-      .catch(() => res.status(500).send("Id is not invalid"));
-  }
-  async getChannelVideos(req: Request, res: Response) {
-    const { channelId, maxResults, nextPageToken } = req.query;
-    let oldTotal = 0;
-    if (nextPageToken) {
-      const arr = nextPageToken.toString().split("|");
-      if (arr.length < 2 || new Date(arr[1]).toString() === "Invalid Date") {
-        return res.status(500).send("Next Page Token is not valid");
-      }
-      oldTotal = Number(arr[1]);
-    }
-    const max = maxResults ? Number(maxResults) : 10;
-    this.tubeService
-      .getChannelVideos(channelId.toString(), max, oldTotal)
-      .then((playlistVideo) => {
-        if (playlistVideo.length > 0) {
-          const result: ListResult<PlaylistVideo> = {
-            list: playlistVideo,
-            nextPageToken: `${playlistVideo[playlistVideo.length - 1].id}|${
-              oldTotal + max
-            }`,
-          };
+    const playlistId = queryParam(req, res, "playlistId");
+    if (playlistId) {
+      const limit = queryGetNumber(req, res, "limit", 10);
+      const { nextPageToken } = req.query;
+      this.videoService
+        .getPlaylistVideos(playlistId, limit, nextPageToken && nextPageToken.toString())
+        .then((result) => {
           return res.status(200).json(result);
-        } else {
-          return res.status(200).json([]);
-        }
+        })
+        .catch((err) => handleError(err, res));
+    }
+  }
+  getChannelVideos(req: Request, res: Response) {
+    const channelId = queryParam(req, res, "channelId");
+    if (channelId) {
+      const limit = queryGetNumber(req, res, "limit", 10);
+      const { nextPageToken } = req.query;
+      const token = handleToken(res, nextPageToken);
+      this.videoService.getChannelVideos(channelId.toString(), limit, token.oldTotal.toString()).then((result) => {
+        return res.status(200).json(result);
       });
+    }
   }
   async getCategory(req: Request, res: Response) {
-    const { regionCode } = req.query;
-    const categoryCollection = await this.tubeService.getCategory(
-      regionCode.toString()
-    );
-    if (categoryCollection) {
-      return res.status(200).json(categoryCollection);
-    } else {
-      const category = await this.client.getCagetories(regionCode.toString());
-      if (category) {
-        const titleCategoryToSave = category
-          .filter((item) => item.assignable === true)
-          .map((item) => item.title);
-        const newCategoryCollection: CategoryCollection = {
-          id: regionCode.toString(),
-          data: titleCategoryToSave,
-        };
-        await this.tubeService.saveCategory(newCategoryCollection);
-        return res.status(200).json(newCategoryCollection);
+    const regionCode = queryParam(req, res, "regionCode");
+    if (regionCode) {
+      const categoryCollection = await this.videoService.getCagetories(regionCode.toString());
+      if (categoryCollection) {
+        return res.status(200).json(categoryCollection);
       } else {
-        return res.status(500).send("regionCode is not valid");
+        const category = await this.client.getCagetories(regionCode.toString());
+        if (category) {
+          const categoryToSave: VideoCategory[] = category.filter((item) => item.assignable === true);
+          const newCategoryCollection: CategoryCollection = {
+            id: regionCode.toString(),
+            data: categoryToSave,
+          };
+          await this.videoService.saveCategory(newCategoryCollection);
+          return res.status(200).json(categoryToSave);
+        } else {
+          return res.status(400).send("regionCode is not valid");
+        }
       }
+    }
+  }
+  getVideo(req: Request, res: Response) {
+    const id = queryParam(req, res, "id");
+    const fieldsString = queryParams(req, "fields");
+    const fields = fieldsString && fieldsString.toString().split(",");
+    if (id) {
+      this.videoService
+        .getVideo(id, fields && fields)
+        .then((video) => res.status(200).json(video))
+        .catch((err) => handleError(err, res));
     }
   }
   getVideos(req: Request, res: Response) {
-    const { id } = req.query;
-    if (!id.toString()) {
-      return res.status(500).send("require videoId");
-    } else {
+    const id = queryParam(req, res, "id");
+    const fieldsString = queryParams(req, "fields");
+    const fields = fieldsString && fieldsString.toString().split(",");
+    if (id) {
       const arrayVideoId = id.toString().split(",");
-      this.tubeService
-        .getVideos(arrayVideoId)
+      this.videoService
+        .getVideos(arrayVideoId, fields && fields)
         .then((videos) => res.status(200).json(videos))
-        .catch(() => res.status(500).send([]));
+        .catch((err) => handleError(err, res));
     }
   }
   searchVideos(req: Request, res: Response) {
-    const { q, channelId, limit, nextPageToken, duration } = req.query;
+    const { q, channelId, nextPageToken, duration } = req.query;
+    const limit = queryGetNumber(req, res, "limit", 10);
+    let durationVideo = duration ? duration.toString() : "any";
+    const token = handleToken(res, nextPageToken);
     const itemSM: ItemSM = {
       q: q ? q.toString() : "",
       channelId: channelId ? channelId.toString() : undefined,
+      videoDuration: durationVideo,
     };
-    let oldTotal = 0;
-    let durationVideo = duration ? duration.toString() : "any";
-    if (nextPageToken) {
-      const arr = nextPageToken.toString().split("|");
-      if (arr.length < 2) {
-        return res.status(500).send("Next Page Token is not valid");
-      }
-      oldTotal = Number(arr[1]);
-    }
-    const max = limit ? Number(limit) : 10;
-    this.tubeService
-      .searchVideos(itemSM, max, oldTotal, durationVideo)
+    this.videoService
+      .searchVideos(itemSM, limit, token.oldTotal.toString())
       .then((results) => {
-        if (results.length > 0) {
-          const listResult: ListResult<Playlist> = {
-            list: results,
-            nextPageToken: `${results[results.length - 1].id}|${
-              oldTotal + max
-            }`,
-            limit: results.length,
-          };
-          return res.status(200).json(listResult);
-        } else {
-          return res.status(200).json([]);
-        }
+        return res.status(200).json(results);
       })
-      .catch((err) => res.status(500).json(err));
+      .catch((err) => {
+        console.log(err);
+        return handleError(err, res);
+      });
   }
   searchPlaylists(req: Request, res: Response) {
-    const { q, channelId, limit, nextPageToken } = req.query;
+    const { q, channelId, nextPageToken } = req.query;
+    const limit = queryGetNumber(req, res, "limit", 10);
     const playlistSM: PlaylistSM = {
       q: q ? q.toString() : "",
       channelId: channelId ? channelId.toString() : undefined,
     };
-    let oldTotal = 0;
-    if (nextPageToken) {
-      const arr = nextPageToken.toString().split("|");
-      if (arr.length < 2) {
-        return res.status(500).send("Next Page Token is not valid");
-      }
-      oldTotal = Number(arr[1]);
-    }
-    const max = limit ? Number(limit) : 10;
-    this.tubeService
-      .searchPlaylists(playlistSM, max, oldTotal)
+    const token = handleToken(res, nextPageToken);
+    this.videoService
+      .searchPlaylists(playlistSM, limit, token.oldTotal.toString())
       .then((results) => {
-        if (results.length > 0) {
-          const listResult: ListResult<Playlist> = {
-            list: results,
-            nextPageToken: `${results[results.length - 1].id}|${
-              oldTotal + max
-            }`,
-            limit: results.length,
-          };
-          return res.status(200).json(listResult);
-        } else {
-          return res.status(200).json([]);
-        }
+        return res.status(200).json(results);
       })
-      .catch((err) => {
-        console.log(err);
-        return res.status(500).json(err);
-      });
+      .catch((err) => handleError(err, res));
   }
   searchChannels(req: Request, res: Response) {
-    const { q, channelId, limit, nextPageToken } = req.query;
+    const { q, channelId, nextPageToken } = req.query;
+    const limit = queryGetNumber(req, res, "limit", 10);
     const channelSM: ChannelSM = {
       q: q ? q.toString() : "",
       channelId: channelId ? channelId.toString() : undefined,
     };
-    let oldTotal = 0;
-    if (nextPageToken) {
-      const arr = nextPageToken.toString().split("|");
-      if (arr.length < 2) {
-        return res.status(500).send("Next Page Token is not valid");
-      }
-      oldTotal = Number(arr[1]);
-    }
-    const max = limit ? Number(limit) : 10;
-    this.tubeService
-      .searchChannels(channelSM, max, oldTotal)
+    const token = handleToken(res, nextPageToken);
+    this.videoService
+      .searchChannels(channelSM, limit, token.oldTotal.toString())
       .then((results) => {
-        if (results.length > 0) {
-          const listResult: ListResult<Channel> = {
-            list: results,
-            nextPageToken: `${results[results.length - 1].id}|${
-              oldTotal + max
-            }`,
-            limit: results.length,
-          };
-          return res.status(200).json(listResult);
-        } else {
-          return res.status(200).json([]);
-        }
+        return res.status(200).json(results);
       })
-      .catch((err) => res.status(500).json(err));
+      .catch((err) => handleError(err, res));
   }
   getRelatedVideos(req: Request, res: Response) {
-    const { id, limit, nextPageToken } = req.query;
-    if (!id) {
-      return res.status(500).send("require id");
-    } else {
-      let oldTotal = 0;
-      if (nextPageToken) {
-        const arr = nextPageToken.toString().split("|");
-        if (arr.length < 2) {
-          return res.status(500).send("Next Page Token is not valid");
-        }
-        oldTotal = Number(arr[1]);
-      }
-      const max = limit ? Number(limit) : 10;
-      this.tubeService
-        .getVideos([id.toString()])
-        .then((video) => {
-          this.tubeService
-            .getRelatedVideo(video[0].tags, max, oldTotal, video[0].id)
-            .then((videos) => {
-              const result: ListResult<Video> = {
-                list: videos,
-                nextPageToken: `${videos[videos.length - 1].id}|${
-                  oldTotal + max
-                }`,
-                limit: videos.length,
-              };
-              return res.status(200).json(result);
-            })
-            .catch((err) => res.status(500).json(err));
-        })
-        .catch((err) => res.status(500).json(err));
+    const id = queryParam(req, res, "id");
+    if (id) {
+      const limit = queryGetNumber(req, res, "limit", 10);
+      const { nextPageToken } = req.query;
+      const token = handleToken(res, nextPageToken);
+      this.videoService
+        .getRelatedVideos(id, limit, token.oldTotal.toString())
+        .then((results) => res.status(200).json(results))
+        .catch((err) => handleError(err, res));
     }
   }
   getPopularVideos(req: Request, res: Response) {
-    const { limit, nextPageToken } = req.query;
-    let oldTotal = 0;
-    const max = limit ? Number(limit) : 10;
-    if (nextPageToken) {
-      const arr = nextPageToken.toString().split("|");
-      if (arr.length < 2) {
-        return res.status(500).send("Next Page Token is not valid");
-      }
-      oldTotal = Number(arr[1]);
-      this.tubeService
-        .getPopularVideos(max, oldTotal)
-        .then((videos) => {
-          const result: ListResult<Video> = {
-            list: videos,
-            nextPageToken: `${videos[videos.length - 1].id}|${oldTotal + max}`,
-            limit: videos.length,
-          };
-          return res.status(200).json(result);
-        })
-        .catch((err) => res.status(500).json(err));
+    const limit = queryGetNumber(req, res, "limit", 10);
+    const { nextPageToken } = req.query;
+    const token = handleToken(res, nextPageToken);
+    this.videoService
+      .getPopularVideos(undefined, undefined, limit, token.oldTotal.toString())
+      .then((results) => {
+        return res.status(200).json(results);
+      })
+      .catch((err) => handleError(err, res));
+  }
+  getPopularVideosByCategory(req: Request, res: Response) {
+    const categoryId = queryParam(req, res, "categoryId");
+    if (categoryId) {
+      const limit = queryGetNumber(req, res, "limit", 10);
+      const { nextPageToken } = req.query;
+      const token = handleToken(res, nextPageToken);
+      this.videoService
+        .getPopularVideosByCategory(categoryId, limit, token.oldTotal.toString())
+        .then((results) => res.status(200).json(results))
+        .catch((err) => handleError(err, res));
     }
   }
+  getPopularVideosByRegion(req: Request, res: Response) {
+    const limit = queryGetNumber(req, res, "limit", 10);
+    const { nextPageToken } = req.query;
+    const token = handleToken(res, nextPageToken);
+    this.videoService
+      .getPopularVideosByRegion(undefined, limit, token.oldTotal.toString())
+      .then((results) => {
+        return res.status(200).json(results);
+      })
+      .catch((err) => handleError(err, res));
+  }
 }
+
+export const handleToken = (res: Response, nextPageToken) => {
+  let oldTotal = 0;
+  let id = "";
+  if (nextPageToken) {
+    const arr = nextPageToken.toString().split("|");
+    if (arr.length < 2) {
+      res.status(400).send("Next Page Token is not valid").end();
+    }
+    id = arr[0];
+    oldTotal = Number(arr[1]);
+  }
+  return { id, oldTotal };
+};
