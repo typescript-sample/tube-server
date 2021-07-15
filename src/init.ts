@@ -12,8 +12,8 @@ import { DefaultSyncService, YoutubeClient } from './video-plus';
 export function createContext(db: Db, key: string): ApplicationContext {
   const httpRequest = new HttpRequest(axios);
   const client = new YoutubeClient(key, httpRequest);
-  const tubeService = new MongoTubeService(db);
-  const tubeController = new TubeController(tubeService, client, log);
+  const tubeService = new MongoTubeService(db, client);
+  const tubeController = new TubeController(tubeService, log);
   const videoRepository = new MongoVideoRepository(db);
   const syncService = new DefaultSyncService(client, videoRepository);
   const syncController = new SyncController(syncService);

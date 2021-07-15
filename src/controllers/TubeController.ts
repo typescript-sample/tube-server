@@ -3,7 +3,7 @@ import { CategoryCollection, ChannelSM, ItemSM, PlaylistSM, VideoCategory, Video
 import { handleError, query, queryNumber, queryParam, queryParams, queryRequiredParams, respondModel } from './util';
 
 export class TubeController {
-  constructor(private videoService: VideoService, private client: YoutubeClient, private log: (msg: any, ctx?: any) => void) {
+  constructor(private videoService: VideoService, private log: (msg: any, ctx?: any) => void) {
     this.getCategory = this.getCategory.bind(this);
     this.getChannel = this.getChannel.bind(this);
     this.getChannels = this.getChannels.bind(this);
@@ -25,23 +25,13 @@ export class TubeController {
   async getCategory(req: Request, res: Response) {
     const regionCode = queryParam(req, res, 'regionCode');
     if (regionCode) {
-      const categoryCollection = await this.videoService.getCagetories(regionCode);
-      if (categoryCollection) {
-        return res.status(200).json(categoryCollection);
-      } else {
-        const category = await this.client.getCagetories(regionCode.toString());
-        if (category) {
-          const categoryToSave: VideoCategory[] = category.filter((item) => item.assignable === true);
-          const newCategoryCollection: CategoryCollection = {
-            id: regionCode,
-            data: categoryToSave,
-          };
-          // await this.videoService.saveCategory(newCategoryCollection);
-          return res.status(200).json(categoryToSave);
-        } else {
-          return res.status(400).send('regionCode is not valid');
-        }
-      }
+      this.videoService
+        .getCagetories(regionCode)
+        .then((r) => {
+          console.log(r);
+          return res.status(200).json(r);
+        })
+        .catch((err) => handleError(err, res, this.log));
     }
   }
   getChannel(req: Request, res: Response) {
@@ -145,8 +135,9 @@ export class TubeController {
     const fields = queryParams(req, 'fields');
     const channelId = query(req, 'channelId');
     const q = query(req, 'q', '');
+    const order = query(req, 'order');
     const videoDuration = duration ? duration.toString() : 'any';
-    const itemSM: ItemSM = { channelId, q, videoDuration };
+    const itemSM: ItemSM = { channelId, q, videoDuration, order };
     this.videoService
       .searchVideos(itemSM, limit, nextPageToken, fields)
       .then((results) => res.status(200).json(results))
@@ -157,8 +148,9 @@ export class TubeController {
     const nextPageToken = query(req, 'nextPageToken');
     const fields = queryParams(req, 'fields');
     const channelId = query(req, 'channelId');
+    const order = query(req, 'order');
     const q = query(req, 'q', '');
-    const playlistSM: PlaylistSM = { channelId, q };
+    const playlistSM: PlaylistSM = { channelId, q, order };
     this.videoService
       .searchPlaylists(playlistSM, limit, nextPageToken, fields)
       .then((results) => res.status(200).json(results))
@@ -169,8 +161,9 @@ export class TubeController {
     const nextPageToken = query(req, 'nextPageToken');
     const fields = queryParams(req, 'fields');
     const channelId = query(req, 'channelId');
+    const order = query(req, 'order');
     const q = query(req, 'q', '');
-    const channelSM: ChannelSM = { channelId, q };
+    const channelSM: ChannelSM = { channelId, q, order };
     this.videoService
       .searchChannels(channelSM, limit, nextPageToken, fields)
       .then((results) => res.status(200).json(results))
