@@ -1,4 +1,4 @@
-import {Request, Response} from 'express';
+import { Request, Response } from 'express';
 
 export function log(msg: any): void {
   console.log(JSON.stringify(msg));
@@ -97,15 +97,18 @@ export function queryRequiredDate(req: Request, res: Response, name: string): Da
 }
 export function queryDate(req: Request, name: string, d?: Date): Date {
   const field = req.query[name];
-  const v = field.toString();
-  if (!v || v.length === 0) {
-    return d;
+  if (field) {
+    const v = field.toString();
+    if (!v || v.length === 0) {
+      return d;
+    }
+    const date = new Date(v);
+    if (date.toString() === 'Invalid Date') {
+      return d;
+    }
+    return date;
   }
-  const date = new Date(v);
-  if (date.toString() === 'Invalid Date') {
-    return d;
-  }
-  return date;
+  return undefined;
 }
 
 export function param(req: Request, res: Response, name: string): string {

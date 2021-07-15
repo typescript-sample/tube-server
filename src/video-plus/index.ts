@@ -3,6 +3,87 @@ import {CategorySnippet, Channel, ChannelDetail, ChannelSM, ChannelSnippet, Item
 export * from './models';
 export * from './comment';
 
+export interface StringMap {
+  [key: string]: string;
+}
+export const channelMap: StringMap = {
+  publishedat: 'publishedAt',
+  customurl: 'customUrl',
+  localizedtitle: 'localizedTitle',
+  localizeddescription: 'localizedDescription',
+  mediumthumbnail: 'mediumThumbnail',
+  highthumbnail: 'highThumbnail',
+  lastupload: 'lastUpload',
+  itemcount: 'itemCount',
+  playlistcount: 'playlistCount',
+  playlistitemcount: 'playlistItemCount',
+  playlistvideocount: 'playlistVideoCount',
+  playlistvideoitemcount: 'playlistVideoItemCount',
+};
+export const playlistMap: StringMap = {
+  publishedat: 'publishedAt',
+  channelid: 'channelId',
+  channeltitle: 'channelTitle',
+  localizedtitle: 'localizedTitle',
+  localizeddescription: 'localizedDescription',
+  mediumthumbnail: 'mediumThumbnail',
+  highthumbnail: 'highThumbnail',
+  standardthumbnail: 'standardThumbnail',
+  maxresthumbnail: 'maxresThumbnail',
+};
+export const videoMap: StringMap = {
+  publishedat: 'publishedAt',
+  categoryid: 'categoryId',
+  channelid: 'channelId',
+  channeltitle: 'channelTitle',
+  localizedtitle: 'localizedTitle',
+  localizeddescription: 'localizedDescription',
+  mediumthumbnail: 'mediumThumbnail',
+  highthumbnail: 'highThumbnail',
+  standardthumbnail: 'standardThumbnail',
+  maxresthumbnail: 'maxresThumbnail',
+  defaultaudiolanguage: 'defaultAudioLanguage',
+  defaultlanguage: 'defaultLanguage',
+  licensedcontent: 'licensedContent',
+  livebroadcastcontent: 'liveBroadcastContent',
+  blockedregions: 'blockedRegions',
+  allowedregions: 'allowedRegions'
+};
+export const playlistFields = ['id', 'channelId', 'channelTitle', 'description',
+  'highThumbnail', 'localizedDescription', 'localizedTitle',
+  'maxresThumbnail', 'mediumThumbnail', 'publishedAt', 'standardThumbnail',
+  'thumbnail', 'title', 'count', 'itemCount'];
+export const channelFields = ['id', 'count', 'country', 'lastUpload', 'customUrl', 'description',
+  'favorites', 'highThumbnail', 'itemCount', 'likes', 'localizedDescription', 'localizedTitle',
+  'mediumThumbnail', 'publishedat', 'thumbnail', 'title', 'uploads',
+  'count', 'itemCount', 'playlistCount', 'playlistItemCount', 'playlistVideoCount', 'playlistVideoItemCount'
+];
+export const videoFields = [
+  'id', 'caption', 'categoryId', 'channelId', 'channelTitle', 'defaultAudioLanguage',
+  'defaultLanguage', 'definition', 'description', 'dimension', 'duration', 'highThumbnail',
+  'licensedContent', 'liveBroadcastContent', 'localizedDescription', 'localizedTitle', 'maxresThumbnail',
+  'mediumThumbnail', 'projection', 'publishedAt', 'standardThumbnail', 'tags', 'thumbnail', 'title', 'blockedRegions', 'allowedRegions'
+];
+export function getFields(fields: string[], all?: string[]): string[] {
+  if (!fields || fields.length === 0) {
+    return undefined;
+  }
+  const existFields: string[] = [];
+  if (all) {
+    for (const s of fields) {
+      if (all.includes(s)) {
+        existFields.push(s);
+      }
+    }
+    if (existFields.length === 0) {
+      return undefined;
+    } else {
+      return existFields;
+    }
+  } else {
+    return fields;
+  }
+}
 export function buildShownItems<T extends Title>(keyword: string, all: T[], includeDescription?: boolean): T[] {
   if (!all) {
     return [];
@@ -21,7 +102,7 @@ export function buildShownItems<T extends Title>(keyword: string, all: T[], incl
 export interface ChannelSync {
   id: string;
   uploads?: string;
-  timestamp?: Date;
+  syncTime?: Date;
   level?: number;
 }
 export interface PlaylistCollection {
@@ -70,11 +151,11 @@ export interface VideoService {
   getPopularVideosByCategory(videoCategoryId?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>>;
   getVideos(ids: string[], fields?: string[], noSnippet?: boolean): Promise<Video[]>;
   getVideo(id: string, fields?: string[], noSnippet?: boolean): Promise<Video>;
-  search(sm: ItemSM, max?: number, nextPageToken?: string|number, fields?: string[]): Promise<ListResult<Item>>;
+  search(sm: ItemSM, max?: number, nextPageToken?: string | number, fields?: string[]): Promise<ListResult<Item>>;
   getRelatedVideos?(videoId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>>;
-  searchVideos?(sm: ItemSM, max?: number, nextPageToken?: string|number, fields?: string[]): Promise<ListResult<Item>>;
-  searchPlaylists?(sm: PlaylistSM, max?: number, nextPageToken?: string|number, fields?: string[]): Promise<ListResult<Playlist>>;
-  searchChannels?(sm: ChannelSM, max?: number, nextPageToken?: string|number, fields?: string[]): Promise<ListResult<Channel>>;
+  searchVideos?(sm: ItemSM, max?: number, nextPageToken?: string | number, fields?: string[]): Promise<ListResult<Item>>;
+  searchPlaylists?(sm: PlaylistSM, max?: number, nextPageToken?: string | number, fields?: string[]): Promise<ListResult<Playlist>>;
+  searchChannels?(sm: ChannelSM, max?: number, nextPageToken?: string | number, fields?: string[]): Promise<ListResult<Channel>>;
   /**
    * @param videoId
    * @param order relevance, time (default)
@@ -94,7 +175,7 @@ export interface Headers {
   [key: string]: any;
 }
 export interface HttpRequest {
-  get<T>(url: string, options?: {headers?: Headers}): Promise<T>;
+  get<T>(url: string, options?: { headers?: Headers }): Promise<T>;
 }
 export class YoutubeClient implements VideoService {
   private channelCache: Cache<Channel>;
@@ -142,7 +223,7 @@ export class YoutubeClient implements VideoService {
       return this.getChannels([id]).then(res => {
         const channel = res && res.length > 0 ? res[0] : null;
         if (channel) {
-          this.channelCache[id] = {item: channel, timestamp: new Date()};
+          this.channelCache[id] = { item: channel, timestamp: new Date() };
           removeCache(this.channelCache, this.maxChannel);
         }
         return channel;
@@ -170,7 +251,7 @@ export class YoutubeClient implements VideoService {
       return this.getPlaylists([id]).then(res => {
         const playlist = res && res.length > 0 ? res[0] : null;
         if (playlist) {
-          this.playlistCache[id] = {item: playlist, timestamp: new Date()};
+          this.playlistCache[id] = { item: playlist, timestamp: new Date() };
           removeCache(this.playlistCache, this.maxPlaylist);
         }
         return playlist;
@@ -220,7 +301,7 @@ export class YoutubeClient implements VideoService {
     return this.httpRequest.get<YoutubeListResult<ListItem<string, VideoSnippet, YoutubeVideoDetail>>>(url).then(res => {
       const r = fromYoutubeVideos(res);
       if (!r || !r.list) {
-        return[];
+        return [];
       }
       return r.list;
     });
@@ -241,21 +322,21 @@ export class YoutubeClient implements VideoService {
     const url = `https://www.googleapis.com/youtube/v3/comments?key=${this.key}&parentId=${id}&maxResults=${maxResults}${pageToken}&part=snippet`;
     return this.httpRequest.get<YoutubeListResult<ListItem<string, CommentSnippet, any>>>(url).then(res => fromYoutubeComments(res));
   }
-  search(sm: ItemSM, max?: number, nextPageToken?: string|number): Promise<ListResult<Item>> {
+  search(sm: ItemSM, max?: number, nextPageToken?: string | number): Promise<ListResult<Item>> {
     const searchType = sm.type ? `&type=${sm.type}` : '';
     const searchDuration = sm.type === 'video' && (sm.videoDuration === 'long' || sm.videoDuration === 'medium' || sm.videoDuration === 'short') ? `&videoDuration=${sm.videoDuration}` : '';
-    const searchOrder = (sm.order === 'date' || sm.order === 'rating' || sm.order === 'title' || sm.order === 'videoCount' || sm.order === 'viewCount' ) ? `&order=${sm.order}` : '';
+    const searchOrder = (sm.order === 'date' || sm.order === 'rating' || sm.order === 'title' || sm.order === 'videoCount' || sm.order === 'viewCount') ? `&order=${sm.order}` : '';
     const regionParam = (sm.regionCode && sm.regionCode.length > 0 ? `&regionCode=${sm.regionCode}` : '');
     const pageToken = (nextPageToken ? `&pageToken=${nextPageToken}` : '');
     const maxResults = (max && max > 0 ? max : 50); // maximum is 50
     const url = `https://www.googleapis.com/youtube/v3/search?key=${this.key}&part=snippet${regionParam}&q=${sm.q}&maxResults=${maxResults}${searchType}${searchDuration}${searchOrder}${pageToken}`;
     return this.httpRequest.get<YoutubeListResult<ListItem<SearchId, SearchSnippet, any>>>(url).then(res => fromYoutubeSearch(res));
   }
-  searchVideos(sm: ItemSM, max?: number, nextPageToken?: string|number): Promise<ListResult<Item>> {
+  searchVideos(sm: ItemSM, max?: number, nextPageToken?: string | number): Promise<ListResult<Item>> {
     sm.type = 'video';
     return this.search(sm, max, nextPageToken);
   }
-  searchPlaylists?(sm: PlaylistSM, max?: number, nextPageToken?: string|number): Promise<ListResult<Playlist>> {
+  searchPlaylists?(sm: PlaylistSM, max?: number, nextPageToken?: string | number): Promise<ListResult<Playlist>> {
     const s: any = sm;
     s.type = 'playlist';
     return this.search(s, max, nextPageToken).then(res => {
@@ -273,10 +354,10 @@ export class YoutubeClient implements VideoService {
         };
         return p;
       });
-      return {list, total: res.total, limit: res.limit, nextPageToken: res.nextPageToken};
+      return { list, total: res.total, limit: res.limit, nextPageToken: res.nextPageToken };
     });
   }
-  searchChannels?(sm: ChannelSM, max?: number, nextPageToken?: string|number): Promise<ListResult<Channel>> {
+  searchChannels?(sm: ChannelSM, max?: number, nextPageToken?: string | number): Promise<ListResult<Channel>> {
     const s: any = sm;
     s.type = 'channel';
     return this.search(s, max, nextPageToken).then(res => {
@@ -294,7 +375,7 @@ export class YoutubeClient implements VideoService {
         };
         return p;
       });
-      return {list, total: res.total, limit: res.limit, nextPageToken: res.nextPageToken};
+      return { list, total: res.total, limit: res.limit, nextPageToken: res.nextPageToken };
     });
   }
   getRelatedVideos(videoId: string, max?: number, nextPageToken?: string): Promise<ListResult<Item>> {
@@ -338,7 +419,7 @@ export function fromYoutubeChannels(res: YoutubeListResult<ListItem<string, Chan
     };
     if (item.contentDetails && item.contentDetails.relatedPlaylists) {
       const r = item.contentDetails.relatedPlaylists;
-      i.likes =  r.likes;
+      i.likes = r.likes;
       i.favorites = r.favorites;
       i.uploads = r.uploads;
     }
@@ -367,7 +448,7 @@ export function fromYoutubePlaylists(res: YoutubeListResult<ListItem<string, Pla
     };
     return i;
   });
-  return {list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken};
+  return { list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken };
 }
 export function fromYoutubePlaylist(res: YoutubeListResult<ListItem<string, PlaylistVideoSnippet, VideoItemDetail>>): ListResult<PlaylistVideo> {
   const list = res.items.filter(i => i.snippet).map(item => {
@@ -395,7 +476,7 @@ export function fromYoutubePlaylist(res: YoutubeListResult<ListItem<string, Play
     };
     return i;
   });
-  return {list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken};
+  return { list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken };
 }
 export function fromYoutubeSearch(res: YoutubeListResult<ListItem<SearchId, SearchSnippet, any>>): ListResult<Item> {
   const list = res.items.filter(i => i.snippet).map(item => {
@@ -428,7 +509,7 @@ export function fromYoutubeSearch(res: YoutubeListResult<ListItem<SearchId, Sear
     }
     return i;
   });
-  return {list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken};
+  return { list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken };
 }
 export function fromYoutubeVideos(res: YoutubeListResult<ListItem<string, VideoSnippet, YoutubeVideoDetail>>): ListResult<Video> {
   const list = res.items.map(item => {
@@ -460,8 +541,12 @@ export function fromYoutubeVideos(res: YoutubeListResult<ListItem<string, VideoS
         definition: content.definition === 'hd' ? 5 : 4,
         caption: content.caption === 'true' ? true : undefined,
         licensedContent: content.licensedContent,
-        projection: content.projection === 'rectangular' ? undefined : 'p'
+        projection: content.projection === 'rectangular' ? undefined : '3'
       };
+      if (content.regionRestriction) {
+        i.allowedRegions = content.regionRestriction.allow;
+        i.blockedRegions = content.regionRestriction.blocked;
+      }
       return i;
     } else {
       const i: Video = {
@@ -471,12 +556,16 @@ export function fromYoutubeVideos(res: YoutubeListResult<ListItem<string, VideoS
         definition: content.definition === 'hd' ? 5 : 4,
         caption: content.caption === 'true' ? true : undefined,
         licensedContent: content.licensedContent,
-        projection: content.projection === 'rectangular' ? undefined : 'p'
+        projection: content.projection === 'rectangular' ? undefined : '3'
       };
+      if (content.regionRestriction) {
+        i.allowedRegions = content.regionRestriction.allow;
+        i.blockedRegions = content.regionRestriction.blocked;
+      }
       return i;
     }
   });
-  return {list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken};
+  return { list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken };
 }
 export function fromYoutubeCommentThreads(res: YoutubeListResult<ListItem<string, TopLevelCommentSnippet, any>>): ListResult<CommentThead> {
   const list = res.items.filter(i => i.snippet).map(item => {
@@ -503,7 +592,7 @@ export function fromYoutubeCommentThreads(res: YoutubeListResult<ListItem<string
     };
     return i;
   });
-  return {list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken};
+  return { list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken };
 }
 export function fromYoutubeComments(res: YoutubeListResult<ListItem<string, CommentSnippet, any>>): ListResult<Comment> {
   const list = res.items.filter(i => i.snippet).map(item => {
@@ -525,7 +614,7 @@ export function fromYoutubeComments(res: YoutubeListResult<ListItem<string, Comm
     };
     return i;
   });
-  return {list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken};
+  return { list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken };
 }
 
 export function calculateDuration(d: string): number {
@@ -636,11 +725,11 @@ export function checkAndSyncUploads(channel: Channel, channelSync: ChannelSync, 
     return Promise.resolve(0);
   } else {
     const date = new Date();
-    const timestamp = channelSync ? channelSync.timestamp : undefined;
+    const timestamp = channelSync ? channelSync.syncTime : undefined;
     const syncVideos = (!channelSync || (channelSync && channelSync.level && channelSync.level >= 2)) ? true : false;
     const syncCollection = (!channelSync || (channelSync && channelSync.level && channelSync.level >= 1)) ? true : false;
     syncUploads(channel.uploads, client, repo, timestamp).then(r => {
-      channel.timestamp = r.timestamp;
+      channel.lastUpload = r.timestamp;
       channel.count = r.count;
       channel.itemCount = r.all;
       syncChannelPlaylists(channel.id, syncVideos, syncCollection, client, repo).then(res => {
@@ -651,7 +740,7 @@ export function checkAndSyncUploads(channel: Channel, channelSync: ChannelSync, 
           channel.playlistVideoItemCount = res.allVideoCount;
         }
         return repo.saveChannel(channel).then(c => {
-          return repo.saveChannelSync({id: channel.id, timestamp: date, uploads: channel.uploads});
+          return repo.saveChannelSync({ id: channel.id, syncTime: date, uploads: channel.uploads });
         });
       });
     });

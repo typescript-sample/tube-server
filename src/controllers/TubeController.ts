@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { CategoryCollection, ChannelSM, ItemSM, PlaylistSM, VideoCategory, VideoService, YoutubeClient } from '../video-plus';
-import { handleError, query, queryNumber, queryParam, queryParams, queryRequiredParams, respondModel } from './util';
+import { handleError, query, queryDate, queryNumber, queryParam, queryParams, queryRequiredParams, respondModel } from './util';
 
 export class TubeController {
   constructor(private videoService: VideoService, private log: (msg: any, ctx?: any) => void) {
@@ -137,7 +137,9 @@ export class TubeController {
     const q = query(req, 'q', '');
     const order = query(req, 'order');
     const videoDuration = duration ? duration.toString() : 'any';
-    const itemSM: ItemSM = { channelId, q, videoDuration, order };
+    const publishedBefore = queryDate(req, 'publishedBefore');
+    const publishedAfter = queryDate(req, 'publishedAfter');
+    const itemSM: ItemSM = { channelId, q, videoDuration, order, publishedAfter, publishedBefore };
     this.videoService
       .searchVideos(itemSM, limit, nextPageToken, fields)
       .then((results) => res.status(200).json(results))
@@ -149,8 +151,10 @@ export class TubeController {
     const fields = queryParams(req, 'fields');
     const channelId = query(req, 'channelId');
     const order = query(req, 'order');
+    const publishedBefore = queryDate(req, 'publishedBefore');
+    const publishedAfter = queryDate(req, 'publishedAfter');
     const q = query(req, 'q', '');
-    const playlistSM: PlaylistSM = { channelId, q, order };
+    const playlistSM: PlaylistSM = { channelId, q, order, publishedAfter, publishedBefore };
     this.videoService
       .searchPlaylists(playlistSM, limit, nextPageToken, fields)
       .then((results) => res.status(200).json(results))

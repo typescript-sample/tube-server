@@ -36,7 +36,6 @@ export interface ItemSM {
   type?: string; // video, channel, playlist
   videoDuration?: string; // any, long (more than 20 minutes), medium (from 4 minutes to 20 minutes), short (less than 4 minutes)
   order?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
-  nextPageToken?: string;
   relatedToVideoId?: string;
   forMine?: boolean;
   channelId?: string;
@@ -79,7 +78,7 @@ export interface Channel extends ItemInfo {
   likes?: string;
   favorites?: string;
   uploads?: string;
-  timestamp?: Date;
+  lastUpload?: Date;
   count?: number;
   itemCount?: number;
   playlistCount?: number;
@@ -109,6 +108,8 @@ export interface VideoInfo {
 export interface Video extends ItemInfo, BigThumbnail, VideoDetail, VideoInfo {
   videoOwnerChannelId?: string;
   videoOwnerChannelTitle?: string;
+  blockedRegions?: string[];
+  allowedRegions?: string[];
 }
 export interface VideoDetail {
   duration: number;
@@ -171,6 +172,10 @@ export interface VideoItemDetail {
   videoId: string;
   videoPublishedAt: Date;
 }
+export interface RegionRestriction {
+  allow?: string[];
+  blocked?: string[];
+}
 export interface YoutubeVideoDetail {
   duration: string;
   dimension: string;
@@ -178,6 +183,7 @@ export interface YoutubeVideoDetail {
   caption: string;
   licensedContent: boolean;
   projection: string;
+  regionRestriction?: RegionRestriction;
 }
 export interface BaseSnippet extends Title, ChannelInfo {
   thumbnails: Thumbnails;
