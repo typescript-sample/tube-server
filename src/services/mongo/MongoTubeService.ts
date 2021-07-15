@@ -1,9 +1,9 @@
-import { Collection, Db, FilterQuery } from "mongodb";
-import { CategoryCollection, Channel, ChannelSM, Item, ItemSM, ListResult, Playlist, PlaylistCollection, PlaylistSM, PlaylistVideo, Video, VideoCategory, VideoService } from "../../video-plus";
-import { buildProject, findAllWithMap, findOne, findWithMap, StringMap, upsert } from "./mongo";
+import { Collection, Db, FilterQuery } from 'mongodb';
+import { CategoryCollection, Channel, ChannelSM, Item, ItemSM, ListResult, Playlist, PlaylistCollection, PlaylistSM, PlaylistVideo, Video, VideoCategory, VideoService } from '../../video-plus';
+import { buildProject, findAllWithMap, findOne, findWithMap, StringMap, upsert } from './mongo';
 
 export class MongoTubeService implements VideoService {
-  private readonly id = "id";
+  private readonly id = 'id';
   private readonly channelsCollection: Collection;
   private readonly videosCollection: Collection;
   private readonly playlistCollection: Collection;
@@ -12,14 +12,14 @@ export class MongoTubeService implements VideoService {
   private readonly playlistVideoFields: string[];
   private readonly idMap: StringMap;
   constructor(db: Db) {
-    this.channelsCollection = db.collection("channel");
-    this.playlistCollection = db.collection("playlist");
-    this.videosCollection = db.collection("video");
-    this.playlistVideoCollection = db.collection("playlistVideo");
-    this.categoryCollection = db.collection("category");
+    this.channelsCollection = db.collection('channel');
+    this.playlistCollection = db.collection('playlist');
+    this.videosCollection = db.collection('video');
+    this.playlistVideoCollection = db.collection('playlistVideo');
+    this.categoryCollection = db.collection('category');
     this.saveCategory = this.saveCategory.bind(this);
-    this.playlistVideoFields = ["_id", "title", "description", "publishedAt", "channelId", "channelTitle", "localizedTitle", "localizedDescription", "thumbnail", "mediumThumbnail", "highThumbnail", "standardThumbnail", "maxresThumbnail"];
-    this.idMap = { id: "_id" };
+    this.playlistVideoFields = ['_id', 'title', 'description', 'publishedAt', 'channelId', 'channelTitle', 'localizedTitle', 'localizedDescription', 'thumbnail', 'mediumThumbnail', 'highThumbnail', 'standardThumbnail', 'maxresThumbnail'];
+    this.idMap = { id: '_id' };
   }
   getChannel(channelId: string, fields?: string[]): Promise<Channel> {
     const query: FilterQuery<any> = { _id: channelId };
@@ -72,9 +72,9 @@ export class MongoTubeService implements VideoService {
       const ids = playlist.videos.slice(skip, skip + limit);
       const query: FilterQuery<any> = { _id: { $in: ids } };
       const map: StringMap = {
-        id: "id",
-        videoOwnerChannelId: "channelId",
-        videoOwnerChannelTitle: "channelTitle",
+        id: 'id',
+        videoOwnerChannelId: 'channelId',
+        videoOwnerChannelTitle: 'channelTitle',
       };
       const project = buildProject(fields, this.playlistVideoFields, map);
       return findAllWithMap<PlaylistVideo>(this.videosCollection, query, this.id, map, undefined, project).then((list) => {
@@ -91,12 +91,13 @@ export class MongoTubeService implements VideoService {
     limit = getLimit(limit);
     const skip = getSkip(nextPageToken);
     const map: StringMap = {
-      id: "id",
-      videoOwnerChannelId: "channelId",
-      videoOwnerChannelTitle: "channelTitle",
+      id: 'id',
+      videoOwnerChannelId: 'channelId',
+      videoOwnerChannelTitle: 'channelTitle',
     };
+    const sort = { publishedAt: -1 };
     const project = buildProject(fields, this.playlistVideoFields, map);
-    return findWithMap<PlaylistVideo>(this.videosCollection, query, this.id, map, undefined, limit, skip, project).then((list) => {
+    return findWithMap<PlaylistVideo>(this.videosCollection, query, this.id, map, sort, limit, skip, project).then((list) => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
@@ -119,21 +120,21 @@ export class MongoTubeService implements VideoService {
     const arrayKeys = Object.keys(itemSM);
     const arrayValues = Object.values(itemSM);
     arrayKeys.forEach((key, index) => {
-      if (key === "q") {
-        newQuery["title"] = { $regex: `.*${itemSM.q}.*`, $options: "i" };
-      } else if (key === "videoDuration") {
+      if (key === 'q') {
+        newQuery['title'] = { $regex: `.*${itemSM.q}.*`, $options: 'i' };
+      } else if (key === 'videoDuration') {
         switch (itemSM.videoDuration) {
-          case "any":
-            newQuery["duration"] = { $gt: 0 };
+          case 'any':
+            newQuery['duration'] = { $gt: 0 };
             break;
-          case "short":
-            newQuery["duration"] = { $gt: 0, $lte: 240 };
+          case 'short':
+            newQuery['duration'] = { $gt: 0, $lte: 240 };
             break;
-          case "medium":
-            newQuery["duration"] = { $gt: 240, $lte: 1200 };
+          case 'medium':
+            newQuery['duration'] = { $gt: 240, $lte: 1200 };
             break;
-          case "long":
-            newQuery["duration"] = { $gt: 1200 };
+          case 'long':
+            newQuery['duration'] = { $gt: 1200 };
             break;
           default:
             break;
@@ -158,8 +159,8 @@ export class MongoTubeService implements VideoService {
     const arrayKeys = Object.keys(itemSM);
     const arrayValues = Object.values(itemSM);
     arrayKeys.forEach((key, index) => {
-      if (key === "q") {
-        newQuery["title"] = { $regex: `.*${itemSM.q}.*`, $options: "i" };
+      if (key === 'q') {
+        newQuery['title'] = { $regex: `.*${itemSM.q}.*`, $options: 'i' };
       } else {
         if (arrayValues[index] !== undefined) {
           newQuery[key] = arrayValues[index];
@@ -167,17 +168,17 @@ export class MongoTubeService implements VideoService {
       }
     });
     switch (itemSM.videoDuration) {
-      case "any":
-        newQuery["duration"] = { $gt: 0 };
+      case 'any':
+        newQuery['duration'] = { $gt: 0 };
         break;
-      case "short":
-        newQuery["duration"] = { $gt: 0, $lte: 240 };
+      case 'short':
+        newQuery['duration'] = { $gt: 0, $lte: 240 };
         break;
-      case "medium":
-        newQuery["duration"] = { $gt: 240, $lte: 1200 };
+      case 'medium':
+        newQuery['duration'] = { $gt: 240, $lte: 1200 };
         break;
-      case "long":
-        newQuery["duration"] = { $gt: 1200 };
+      case 'long':
+        newQuery['duration'] = { $gt: 1200 };
         break;
       default:
         break;
@@ -196,10 +197,10 @@ export class MongoTubeService implements VideoService {
     const arrayKeys = Object.keys(playlistSM);
     const arrayValues = Object.values(playlistSM);
     arrayKeys.forEach((key, index) => {
-      if (key === "q") {
-        newQuery["title"] = {
+      if (key === 'q') {
+        newQuery['title'] = {
           $regex: `.*${playlistSM.q}.*`,
-          $options: "i",
+          $options: 'i',
         };
       } else {
         if (arrayValues[index] !== undefined) {
@@ -221,10 +222,10 @@ export class MongoTubeService implements VideoService {
     const arrayKeys = Object.keys(channelSM);
     const arrayValues = Object.values(channelSM);
     arrayKeys.forEach((key, index) => {
-      if (key === "q") {
-        newQuery["title"] = {
+      if (key === 'q') {
+        newQuery['title'] = {
           $regex: `.*${channelSM.q}.*`,
-          $options: "i",
+          $options: 'i',
         };
       } else {
         if (arrayValues[index] !== undefined) {
@@ -285,7 +286,7 @@ export class MongoTubeService implements VideoService {
 
 export function getNextPageToken<T>(list: T[], limit: number, skip: number, name?: string): string {
   if (!name || name.length === 0) {
-    name = "id";
+    name = 'id';
   }
   if (list && list.length < limit) {
     return undefined;
@@ -304,7 +305,7 @@ export function getLimit(limit?: number, d?: number): number {
 }
 export function getSkip(nextPageToken: string): number {
   if (nextPageToken) {
-    const arr = nextPageToken.toString().split("|");
+    const arr = nextPageToken.toString().split('|');
     if (arr.length < 2) {
       return undefined;
     }

@@ -1,6 +1,6 @@
-import { Request, Response } from "express";
-import { CategoryCollection, ChannelSM, ItemSM, PlaylistSM, VideoCategory, VideoService, YoutubeClient } from "../video-plus";
-import { handleError, query, queryNumber, queryParam, queryParams, queryRequiredParams, respondModel } from "./util";
+import { Request, Response } from 'express';
+import { CategoryCollection, ChannelSM, ItemSM, PlaylistSM, VideoCategory, VideoService, YoutubeClient } from '../video-plus';
+import { handleError, query, queryNumber, queryParam, queryParams, queryRequiredParams, respondModel } from './util';
 
 export class TubeController {
   constructor(private videoService: VideoService, private client: YoutubeClient, private log: (msg: any, ctx?: any) => void) {
@@ -23,7 +23,7 @@ export class TubeController {
     this.getPopularVideosByRegion = this.getPopularVideosByRegion.bind(this);
   }
   async getCategory(req: Request, res: Response) {
-    const regionCode = queryParam(req, res, "regionCode");
+    const regionCode = queryParam(req, res, 'regionCode');
     if (regionCode) {
       const categoryCollection = await this.videoService.getCagetories(regionCode);
       if (categoryCollection) {
@@ -39,23 +39,23 @@ export class TubeController {
           // await this.videoService.saveCategory(newCategoryCollection);
           return res.status(200).json(categoryToSave);
         } else {
-          return res.status(400).send("regionCode is not valid");
+          return res.status(400).send('regionCode is not valid');
         }
       }
     }
   }
   getChannel(req: Request, res: Response) {
-    const id = queryParam(req, res, "id");
-    const fields = queryParams(req, "fields");
+    const id = queryParam(req, res, 'id');
+    const fields = queryParams(req, 'fields');
     this.videoService
       .getChannel(id, fields)
       .then((channel) => respondModel(channel, res))
       .catch((err) => handleError(err, res, this.log));
   }
   getChannels(req: Request, res: Response) {
-    const ids = queryRequiredParams(req, res, "id", ",");
+    const ids = queryRequiredParams(req, res, 'id', ',');
     if (ids) {
-      const fields = queryParams(req, "fields");
+      const fields = queryParams(req, 'fields');
       return this.videoService
         .getChannels(ids, fields)
         .then((channels) => res.status(200).json(channels))
@@ -63,9 +63,9 @@ export class TubeController {
     }
   }
   getPlaylist(req: Request, res: Response) {
-    const id = queryParam(req, res, "id");
+    const id = queryParam(req, res, 'id');
     if (id) {
-      const fields = queryParams(req, "fields");
+      const fields = queryParams(req, 'fields');
       return this.videoService
         .getPlaylist(id, fields)
         .then((playlist) => respondModel(playlist, res))
@@ -73,9 +73,9 @@ export class TubeController {
     }
   }
   getPlaylists(req: Request, res: Response) {
-    const ids = queryRequiredParams(req, res, "id", ",");
+    const ids = queryRequiredParams(req, res, 'id', ',');
     if (ids) {
-      const fields = queryParams(req, "fields");
+      const fields = queryParams(req, 'fields');
       return this.videoService
         .getPlaylists(ids, fields)
         .then((playlists) => res.status(200).json(playlists))
@@ -83,11 +83,11 @@ export class TubeController {
     }
   }
   getChannelPlaylists(req: Request, res: Response) {
-    const id = queryParam(req, res, "id");
+    const id = queryParam(req, res, 'id');
     if (id) {
-      const limit = queryNumber(req, "limit");
-      const nextPageToken = query(req, "nextPageToken");
-      const fields = queryParams(req, "fields");
+      const limit = queryNumber(req, 'limit');
+      const nextPageToken = query(req, 'nextPageToken');
+      const fields = queryParams(req, 'fields');
       this.videoService
         .getChannelPlaylists(id.toString(), limit, nextPageToken, fields)
         .then((result) => res.status(200).json(result))
@@ -95,11 +95,11 @@ export class TubeController {
     }
   }
   getPlaylistVideos(req: Request, res: Response) {
-    const playlistId = queryParam(req, res, "playlistId");
+    const playlistId = queryParam(req, res, 'playlistId');
     if (playlistId) {
-      const limit = queryNumber(req, "limit");
-      const nextPageToken = query(req, "nextPageToken");
-      const fields = queryParams(req, "fields");
+      const limit = queryNumber(req, 'limit');
+      const nextPageToken = query(req, 'nextPageToken');
+      const fields = queryParams(req, 'fields');
       this.videoService
         .getPlaylistVideos(playlistId, limit, nextPageToken, fields)
         .then((result) => res.status(200).json(result))
@@ -107,11 +107,11 @@ export class TubeController {
     }
   }
   getChannelVideos(req: Request, res: Response) {
-    const channelId = queryParam(req, res, "channelId");
+    const channelId = queryParam(req, res, 'channelId');
     if (channelId) {
-      const limit = queryNumber(req, "limit");
-      const nextPageToken = query(req, "nextPageToken");
-      const fields = queryParams(req, "fields");
+      const limit = queryNumber(req, 'limit');
+      const nextPageToken = query(req, 'nextPageToken');
+      const fields = queryParams(req, 'fields');
       this.videoService
         .getChannelVideos(channelId, limit, nextPageToken, fields)
         .then((result) => res.status(200).json(result))
@@ -119,9 +119,9 @@ export class TubeController {
     }
   }
   getVideo(req: Request, res: Response) {
-    const id = queryParam(req, res, "id");
+    const id = queryParam(req, res, 'id');
     if (id) {
-      const fields = queryParams(req, "fields");
+      const fields = queryParams(req, 'fields');
       this.videoService
         .getVideo(id, fields)
         .then((video) => respondModel(video, res))
@@ -129,9 +129,9 @@ export class TubeController {
     }
   }
   getVideos(req: Request, res: Response) {
-    const ids = queryRequiredParams(req, res, "id");
+    const ids = queryRequiredParams(req, res, 'id');
     if (ids) {
-      const fields = queryParams(req, "fields");
+      const fields = queryParams(req, 'fields');
       this.videoService
         .getVideos(ids, fields)
         .then((videos) => res.status(200).json(videos))
@@ -140,12 +140,12 @@ export class TubeController {
   }
   searchVideos(req: Request, res: Response) {
     const { duration } = req.query;
-    const limit = queryNumber(req, "limit");
-    const nextPageToken = query(req, "nextPageToken");
-    const fields = queryParams(req, "fields");
-    const channelId = query(req, "channelId");
-    const q = query(req, "q", "");
-    const videoDuration = duration ? duration.toString() : "any";
+    const limit = queryNumber(req, 'limit');
+    const nextPageToken = query(req, 'nextPageToken');
+    const fields = queryParams(req, 'fields');
+    const channelId = query(req, 'channelId');
+    const q = query(req, 'q', '');
+    const videoDuration = duration ? duration.toString() : 'any';
     const itemSM: ItemSM = { channelId, q, videoDuration };
     this.videoService
       .searchVideos(itemSM, limit, nextPageToken, fields)
@@ -153,11 +153,11 @@ export class TubeController {
       .catch((err) => handleError(err, res, this.log));
   }
   searchPlaylists(req: Request, res: Response) {
-    const limit = queryNumber(req, "limit");
-    const nextPageToken = query(req, "nextPageToken");
-    const fields = queryParams(req, "fields");
-    const channelId = query(req, "channelId");
-    const q = query(req, "q", "");
+    const limit = queryNumber(req, 'limit');
+    const nextPageToken = query(req, 'nextPageToken');
+    const fields = queryParams(req, 'fields');
+    const channelId = query(req, 'channelId');
+    const q = query(req, 'q', '');
     const playlistSM: PlaylistSM = { channelId, q };
     this.videoService
       .searchPlaylists(playlistSM, limit, nextPageToken, fields)
@@ -165,11 +165,11 @@ export class TubeController {
       .catch((err) => handleError(err, res, this.log));
   }
   searchChannels(req: Request, res: Response) {
-    const limit = queryNumber(req, "limit");
-    const nextPageToken = query(req, "nextPageToken");
-    const fields = queryParams(req, "fields");
-    const channelId = query(req, "channelId");
-    const q = query(req, "q", "");
+    const limit = queryNumber(req, 'limit');
+    const nextPageToken = query(req, 'nextPageToken');
+    const fields = queryParams(req, 'fields');
+    const channelId = query(req, 'channelId');
+    const q = query(req, 'q', '');
     const channelSM: ChannelSM = { channelId, q };
     this.videoService
       .searchChannels(channelSM, limit, nextPageToken, fields)
@@ -177,11 +177,11 @@ export class TubeController {
       .catch((err) => handleError(err, res, this.log));
   }
   getRelatedVideos(req: Request, res: Response) {
-    const id = queryParam(req, res, "id");
+    const id = queryParam(req, res, 'id');
     if (id) {
-      const limit = queryNumber(req, "limit");
-      const nextPageToken = query(req, "nextPageToken");
-      const fields = queryParams(req, "fields");
+      const limit = queryNumber(req, 'limit');
+      const nextPageToken = query(req, 'nextPageToken');
+      const fields = queryParams(req, 'fields');
       this.videoService
         .getRelatedVideos(id, limit, nextPageToken, fields)
         .then((results) => res.status(200).json(results))
@@ -189,20 +189,20 @@ export class TubeController {
     }
   }
   getPopularVideos(req: Request, res: Response) {
-    const limit = queryNumber(req, "limit");
-    const nextPageToken = query(req, "nextPageToken");
-    const fields = queryParams(req, "fields");
+    const limit = queryNumber(req, 'limit');
+    const nextPageToken = query(req, 'nextPageToken');
+    const fields = queryParams(req, 'fields');
     this.videoService
       .getPopularVideos(undefined, undefined, limit, nextPageToken, fields)
       .then((results) => res.status(200).json(results))
       .catch((err) => handleError(err, res, this.log));
   }
   getPopularVideosByCategory(req: Request, res: Response) {
-    const categoryId = queryParam(req, res, "categoryId");
+    const categoryId = queryParam(req, res, 'categoryId');
     if (categoryId) {
-      const limit = queryNumber(req, "limit");
-      const nextPageToken = query(req, "nextPageToken");
-      const fields = queryParams(req, "fields");
+      const limit = queryNumber(req, 'limit');
+      const nextPageToken = query(req, 'nextPageToken');
+      const fields = queryParams(req, 'fields');
       this.videoService
         .getPopularVideosByCategory(categoryId, limit, nextPageToken, fields)
         .then((results) => res.status(200).json(results))
@@ -210,9 +210,9 @@ export class TubeController {
     }
   }
   getPopularVideosByRegion(req: Request, res: Response) {
-    const limit = queryNumber(req, "limit");
-    const nextPageToken = query(req, "nextPageToken");
-    const fields = queryParams(req, "fields");
+    const limit = queryNumber(req, 'limit');
+    const nextPageToken = query(req, 'nextPageToken');
+    const fields = queryParams(req, 'fields');
     this.videoService
       .getPopularVideosByRegion(undefined, limit, nextPageToken, fields)
       .then((results) => res.status(200).json(results))
