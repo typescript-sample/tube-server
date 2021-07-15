@@ -53,6 +53,9 @@ export function getFields<T>(collection: Collection, field: string, values: T[],
     return r;
   });
 }
+export function findAllWithMap<T>(collection: Collection, query: FilterQuery<T>, id?: string, m?: StringMap, sort?: string | [string, number][] | SortOptionObject<T>, project?: any): Promise<T[]> {
+  return findWithMap(collection, query, id, m, sort, undefined, undefined, project);
+}
 export async function findWithMap<T>(collection: Collection, query: FilterQuery<T>, id?: string, m?: StringMap, sort?: string | [string, number][] | SortOptionObject<T>, limit?: number, skip?: number, project?: any): Promise<T[]> {
   const objects = await find<T>(collection, query, sort, limit, skip, project);
   for (const obj of objects) {
@@ -66,6 +69,9 @@ export async function findWithMap<T>(collection: Collection, query: FilterQuery<
   } else {
     return mapArray(objects, m);
   }
+}
+export function findAll<T>(collection: Collection, query: FilterQuery<T>, sort?: string | [string, number][] | SortOptionObject<T>, project?: SchemaMember<T, ProjectionOperators | number | boolean | any>): Promise<T[]> {
+  return find<T>(collection, query, sort, undefined, undefined, project);
 }
 export function find<T>(collection: Collection, query: FilterQuery<T>, sort?: string | [string, number][] | SortOptionObject<T>, limit?: number, skip?: number, project?: SchemaMember<T, ProjectionOperators | number | boolean | any>): Promise<T[]> {
   return new Promise<T[]>((resolve, reject) => {
@@ -512,13 +518,45 @@ export function mapArray<T>(results: T[], m?: StringMap): T[] {
   }
   return objs;
 }
-export function buildProject<T>(fields: string[], notIncludeId?: boolean): SchemaMember<T, ProjectionOperators | number | boolean | any> {
+export function buildProject<T>(fields: string[], all?: string[], map?: StringMap, notIncludeId?: boolean): SchemaMember<T, ProjectionOperators | number | boolean | any> {
   if (!fields || fields.length === 0) {
     return undefined;
   }
   const p: any = {};
-  for (const s of fields) {
-    p[s] = 1;
+  if (map) {
+    if (all) {
+      for (const s of fields) {
+        if (all.includes(s)) {
+          const s2 = map[s];
+          if (s2) {
+            p[s2] = 1;
+          } else {
+            p[s] = 1;
+          }
+        }
+      }
+    } else {
+      for (const s of fields) {
+        const s2 = map[s];
+        if (s2) {
+          p[s2] = 1;
+        } else {
+          p[s] = 1;
+        }
+      }
+    }
+  } else {
+    if (all) {
+      for (const s of fields) {
+        if (all.includes(s)) {
+          p[s] = 1;
+        }
+      }
+    } else {
+      for (const s of fields) {
+        p[s] = 1;
+      }
+    }
   }
   if (!notIncludeId) {
     p['_id'] = 1;

@@ -1,6 +1,7 @@
 import { Collection, Db, FilterQuery } from "mongodb";
-import { CategoryCollection, Channel, ChannelSM, ChannelSync, Item, ItemSM, ListResult, Playlist, PlaylistCollection, PlaylistSM, PlaylistVideo, Video, VideoCategory, VideoService } from "../../video-plus";
-import { buildProject, findOne, findWithMap, upsert } from "./mongo";
+import { CategoryCollection, Channel, ChannelSM, Item, ItemSM, ListResult, Playlist, PlaylistCollection, PlaylistSM, PlaylistVideo, Video, VideoCategory, VideoService } from "../../video-plus";
+import { buildProject, findAllWithMap, findOne, findWithMap, StringMap, upsert } from "./mongo";
+
 export class MongoTubeService implements VideoService {
   private readonly id = "id";
   private readonly channelsCollection: Collection;
@@ -8,6 +9,8 @@ export class MongoTubeService implements VideoService {
   private readonly playlistCollection: Collection;
   private readonly playlistVideoCollection: Collection;
   private readonly categoryCollection: Collection;
+  private readonly playlistVideoFields: string[];
+  private readonly idMap: StringMap;
   constructor(db: Db) {
     this.channelsCollection = db.collection("channel");
     this.playlistCollection = db.collection("playlist");
@@ -15,105 +18,86 @@ export class MongoTubeService implements VideoService {
     this.playlistVideoCollection = db.collection("playlistVideo");
     this.categoryCollection = db.collection("category");
     this.saveCategory = this.saveCategory.bind(this);
+    this.playlistVideoFields = ["_id", "title", "description", "publishedAt", "channelId", "channelTitle", "localizedTitle", "localizedDescription", "thumbnail", "mediumThumbnail", "highThumbnail", "standardThumbnail", "maxresThumbnail"];
+    this.idMap = { id: "_id" };
   }
-  getChannel(channelId: string): Promise<Channel> {
+  getChannel(channelId: string, fields?: string[]): Promise<Channel> {
     const query: FilterQuery<any> = { _id: channelId };
     return findOne<Channel>(this.channelsCollection, query, this.id);
   }
-  getChannels(channelIds: string[]): Promise<Channel[]> {
+  getChannels(channelIds: string[], fields?: string[]): Promise<Channel[]> {
+    const project = buildProject(fields, undefined, this.idMap, true);
     const query: FilterQuery<any> = { _id: { $in: channelIds } };
-    return findWithMap<Channel>(this.channelsCollection, query, this.id);
+    return findAllWithMap<Channel>(this.channelsCollection, query, this.id, undefined, undefined, project);
   }
-  getPlaylists(playlistIds: string[]): Promise<Playlist[]> {
+  getPlaylists(playlistIds: string[], fields?: string[]): Promise<Playlist[]> {
+    const project = buildProject(fields, undefined, this.idMap, true);
     const query: FilterQuery<any> = { _id: { $in: playlistIds } };
-    return findWithMap<Playlist>(this.playlistCollection, query, this.id);
+    return findAllWithMap<Playlist>(this.playlistCollection, query, this.id, undefined, undefined, project);
   }
-  getPlaylist(playlistId: string): Promise<Playlist> {
-    return this.getPlaylists([playlistId]).then((playlists) => playlists[0]);
+  getPlaylist(playlistId: string, fields?: string[]): Promise<Playlist> {
+    return this.getPlaylists([playlistId], fields).then((playlists) => playlists[0]);
   }
-  getChannelPlaylists(channelId: string, limit: number, oldTotal: string): Promise<ListResult<Playlist>> {
-    const query: FilterQuery<any> = {
-      channelId: channelId,
-    };
+  getChannelPlaylists(channelId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Playlist>> {
+    const project = buildProject(fields);
+    const query: FilterQuery<Playlist> = { channelId };
     const sort = { publishedAt: -1 };
-    return findWithMap<any>(this.playlistCollection, query, this.id, undefined, sort, limit, Number(oldTotal)).then((r) => {
-      const result: ListResult<Playlist> = {
-        list: r,
-        nextPageToken: `${r[r.length - 1].id}|${Number(oldTotal) + limit}`,
-      };
-      return result;
+    limit = getLimit(limit);
+    const skip = getSkip(nextPageToken);
+    return findWithMap<any>(this.playlistCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
+      return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
   getVideos(videoIds: string[], fields?: string[]): Promise<Video[]> {
-    const projection = buildProject(fields);
+    const project = buildProject(fields, undefined, this.idMap, true);
     const query: FilterQuery<any> = { _id: { $in: videoIds } };
-    return findWithMap<Video>(this.videosCollection, query, this.id, undefined, undefined, undefined, undefined, projection);
+    return findAllWithMap<Video>(this.videosCollection, query, this.id, undefined, undefined, project);
   }
   getVideo(videoId: string, fields?: string[]): Promise<Video> {
-    return this.getVideos([videoId], fields).then((videos) => videos[0]);
+    return this.getVideos([videoId], fields).then((videos) => (videos && videos.length > 0 ? videos[0] : null));
   }
-  getPlaylistVideo(id: string): Promise<PlaylistCollection> {
+  getPlaylistVideo(id: string, fields?: string[]): Promise<PlaylistCollection> {
     const query: FilterQuery<any> = { _id: id };
     return findOne<PlaylistCollection>(this.playlistVideoCollection, query, this.id);
   }
-  getPlaylistVideos(playlistId: string, max: number, nextPageToken: string): Promise<ListResult<PlaylistVideo>> {
-    const queryPlaylist: FilterQuery<any> = { _id: playlistId };
-    return findOne<PlaylistCollection>(this.playlistVideoCollection, queryPlaylist, this.id).then((playlist) => {
-      let next: number = 0;
-      let checkNext: boolean = false;
-      if (nextPageToken) {
-        next = playlist.videos.indexOf(nextPageToken.toString()) + 1;
-        if (playlist.videos.indexOf(nextPageToken.toString()) !== playlist.videos.length - 1) {
-          checkNext = true;
-        }
+  getPlaylistVideos(playlistId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>> {
+    limit = getLimit(limit);
+    const skip = getSkip(nextPageToken);
+    const filter: FilterQuery<any> = { _id: playlistId };
+    return findOne<PlaylistCollection>(this.playlistVideoCollection, filter, this.id).then((playlist) => {
+      let checkNext = false;
+      if (skip + limit === playlist.videos.length) {
+        checkNext = true;
       }
-      const ids = playlist.videos.slice(next, max + next);
+      const ids = playlist.videos.slice(skip, skip + limit);
       const query: FilterQuery<any> = { _id: { $in: ids } };
-      const projection = {
-        _id: 1,
-        title: 1,
-        description: 1,
-        publishedAt: 1,
-        standardThumbnail: 1,
-        maxresThumbnail: 1,
-        channelId: 1,
-        channelTitle: 1,
-        localizedTitle: 1,
-        localizedDescription: 1,
+      const map: StringMap = {
+        id: "id",
+        videoOwnerChannelId: "channelId",
+        videoOwnerChannelTitle: "channelTitle",
       };
-      return findWithMap<PlaylistVideo>(this.videosCollection, query, this.id, undefined, undefined, undefined, undefined, projection).then((r) => {
-        const list = formatPlaylistVideo(r);
+      const project = buildProject(fields, this.playlistVideoFields, map);
+      return findAllWithMap<PlaylistVideo>(this.videosCollection, query, this.id, map, undefined, project).then((list) => {
         const result: ListResult<PlaylistVideo> = { list };
-        result.nextPageToken = checkNext ? undefined : ids[ids.length - 1];
+        result.nextPageToken = checkNext ? undefined : `${ids[ids.length - 1]}|${skip + ids.length}`;
         result.total = playlist.videos.length;
         result.limit = playlist.videos.length;
         return result;
       });
     });
   }
-  getChannelVideos(channelId: string, limit: number, oldTotal: string): Promise<ListResult<PlaylistVideo>> {
-    const query: FilterQuery<any> = {
-      channelId: channelId,
+  getChannelVideos(channelId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>> {
+    const query: FilterQuery<PlaylistVideo> = { channelId };
+    limit = getLimit(limit);
+    const skip = getSkip(nextPageToken);
+    const map: StringMap = {
+      id: "id",
+      videoOwnerChannelId: "channelId",
+      videoOwnerChannelTitle: "channelTitle",
     };
-    const projection = {
-      _id: 1,
-      title: 1,
-      description: 1,
-      publishedAt: -1,
-      standardThumbnail: 1,
-      maxresThumbnail: 1,
-      channelId: 1,
-      channelTitle: 1,
-      localizedTitle: 1,
-      localizedDescription: 1,
-    };
-    return findWithMap<PlaylistVideo>(this.videosCollection, query, this.id, undefined, undefined, limit, Number(oldTotal), projection).then((r) => {
-      const list = formatPlaylistVideo(r);
-      const result: ListResult<PlaylistVideo> = {
-        list,
-        nextPageToken: `${r[r.length - 1].id}|${Number(oldTotal) + limit}`,
-      };
-      return result;
+    const project = buildProject(fields, this.playlistVideoFields, map);
+    return findWithMap<PlaylistVideo>(this.videosCollection, query, this.id, map, undefined, limit, skip, project).then((list) => {
+      return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
   getVideoByPlaylistId(videoIds: string[]): Promise<Video[]> {
@@ -127,7 +111,10 @@ export class MongoTubeService implements VideoService {
   saveCategory(category: CategoryCollection): Promise<number> {
     return upsert(this.categoryCollection, category, this.id);
   }
-  searchVideos(itemSM: ItemSM, limit: number, oldTotal: string): Promise<ListResult<Item>> {
+  searchVideos(itemSM: ItemSM, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
+    const project = buildProject(fields, undefined, this.idMap, true);
+    limit = getLimit(limit);
+    const skip = getSkip(nextPageToken);
     const newQuery: any = {};
     const arrayKeys = Object.keys(itemSM);
     const arrayValues = Object.values(itemSM);
@@ -159,15 +146,14 @@ export class MongoTubeService implements VideoService {
     });
     const sort = { publishedAt: -1 };
     const query: FilterQuery<any> = newQuery;
-    return findWithMap<Item>(this.videosCollection, query, this.id, undefined, sort, limit, Number(oldTotal)).then((r) => {
-      const result: ListResult<Item> = {
-        list: r,
-        nextPageToken: `${r[r.length - 1].id}|${Number(oldTotal) + limit}`,
-      };
-      return result;
+    return findWithMap<Item>(this.videosCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
+      return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
-  search(itemSM: ItemSM, limit: number, oldTotal: string): Promise<ListResult<Item>> {
+  search(itemSM: ItemSM, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
+    const project = buildProject(fields, undefined, this.idMap, true);
+    limit = getLimit(limit);
+    const skip = getSkip(nextPageToken);
     const newQuery: any = {};
     const arrayKeys = Object.keys(itemSM);
     const arrayValues = Object.values(itemSM);
@@ -198,15 +184,14 @@ export class MongoTubeService implements VideoService {
     }
     const sort = { publishedAt: -1 };
     const query: FilterQuery<any> = newQuery;
-    return findWithMap<any>(this.videosCollection, query, this.id, undefined, sort, limit, Number(oldTotal)).then((r) => {
-      const result: ListResult<Item> = {
-        list: r,
-        nextPageToken: `${r[r.length - 1].id}|${Number(oldTotal) + limit}`,
-      };
-      return result;
+    return findWithMap<any>(this.videosCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
+      return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
-  searchPlaylists(playlistSM: PlaylistSM, limit: number, oldTotal: string): Promise<ListResult<Playlist>> {
+  searchPlaylists(playlistSM: PlaylistSM, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Playlist>> {
+    const project = buildProject(fields, undefined, this.idMap, true);
+    limit = getLimit(limit);
+    const skip = getSkip(nextPageToken);
     const newQuery: any = {};
     const arrayKeys = Object.keys(playlistSM);
     const arrayValues = Object.values(playlistSM);
@@ -223,16 +208,15 @@ export class MongoTubeService implements VideoService {
       }
     });
     const sort = { publishedAt: -1 };
-    const query: FilterQuery<any> = newQuery;
-    return findWithMap<any>(this.playlistCollection, query, this.id, undefined, sort, limit, Number(oldTotal)).then((r) => {
-      const result: ListResult<Playlist> = {
-        list: r,
-        nextPageToken: `${r[r.length - 1].id}|${Number(oldTotal) + limit}`,
-      };
-      return result;
+    const query: FilterQuery<Playlist> = newQuery;
+    return findWithMap<any>(this.playlistCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
+      return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
-  searchChannels(channelSM: ChannelSM, limit: number, oldTotal: string): Promise<ListResult<Channel>> {
+  searchChannels(channelSM: ChannelSM, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Channel>> {
+    const project = buildProject(fields, undefined, this.idMap, true);
+    limit = getLimit(limit);
+    const skip = getSkip(nextPageToken);
     const newQuery: any = {};
     const arrayKeys = Object.keys(channelSM);
     const arrayValues = Object.values(channelSM);
@@ -249,81 +233,87 @@ export class MongoTubeService implements VideoService {
       }
     });
     const sort = { publishedAt: -1 };
-    const query: FilterQuery<any> = newQuery;
-    return findWithMap<any>(this.channelsCollection, query, this.id, undefined, sort, limit, Number(oldTotal)).then((r) => {
-      const result: ListResult<Channel> = {
-        list: r,
-        nextPageToken: `${r[r.length - 1].id}|${Number(oldTotal) + limit}`,
-      };
-      return result;
+    const query: FilterQuery<Channel> = newQuery;
+    return findWithMap<any>(this.channelsCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
+      return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
-  getRelatedVideos(videoId: string, limit: number, oldTotal: string): Promise<ListResult<Item>> {
+  getRelatedVideos(videoId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
+    const project = buildProject(fields, undefined, this.idMap, true);
+    limit = getLimit(limit);
+    const skip = getSkip(nextPageToken);
     return this.getVideos([videoId]).then((video) => {
       const query: FilterQuery<any> = {
         tags: { $in: video[0].tags },
         _id: { $nin: [videoId] },
       };
       const sort = { publishedAt: -1 };
-      return findWithMap<Item>(this.videosCollection, query, this.id, undefined, sort, limit, Number(oldTotal)).then((r) => {
-        const result: ListResult<Item> = {
-          list: r,
-          nextPageToken: `${r[r.length - 1].id}|${oldTotal + limit}`,
-        };
-        return result;
+      return findWithMap<Item>(this.videosCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
+        return { list, nextPageToken: getNextPageToken(list, limit, skip) };
       });
     });
   }
-  getPopularVideos(regionCode: string, videoCategoryId: string, limit: number, oldTotal: string): Promise<ListResult<Video>> {
+  getPopularVideos(regionCode: string, videoCategoryId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
+    const project = buildProject(fields, undefined, this.idMap, true);
+    limit = getLimit(limit);
+    const skip = getSkip(nextPageToken);
     const sort = { publishedAt: -1 };
-    return findWithMap<Video>(this.videosCollection, undefined, this.id, undefined, sort, limit, Number(oldTotal)).then((r) => {
-      const result: ListResult<Video> = {
-        list: r,
-        nextPageToken: `${r[r.length - 1].id}|${Number(oldTotal) + limit}`,
-      };
-      return result;
+    return findWithMap<Video>(this.videosCollection, undefined, this.id, undefined, sort, limit, skip, project).then((list) => {
+      return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
-  getPopularVideosByCategory(categoryId: string, limit: number, oldTotal: string): Promise<ListResult<Video>> {
-    const query: FilterQuery<any> = {
-      categoryId: categoryId,
-    };
+  getPopularVideosByCategory(categoryId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
+    const project = buildProject(fields, undefined, this.idMap, true);
+    limit = getLimit(limit);
+    const skip = getSkip(nextPageToken);
+    const query: FilterQuery<Video> = { categoryId };
     const sort = { publishedAt: -1 };
-    return findWithMap<Video>(this.videosCollection, query, this.id, undefined, sort, limit, Number(oldTotal)).then((r) => {
-      const result: ListResult<Video> = {
-        list: r,
-        nextPageToken: `${r[r.length - 1].id}|${oldTotal + limit}`,
-      };
-      return result;
+    return findWithMap<Video>(this.videosCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
+      return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
-  getPopularVideosByRegion(regionCode: string, limit: number, oldTotal: string): Promise<ListResult<Video>> {
+  getPopularVideosByRegion(regionCode: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
+    const project = buildProject(fields, undefined, this.idMap, true);
+    limit = getLimit(limit);
+    const skip = getSkip(nextPageToken);
     const sort = { publishedAt: -1 };
-    return findWithMap<Video>(this.videosCollection, undefined, this.id, undefined, sort, limit, Number(oldTotal)).then((r) => {
-      const result: ListResult<Video> = {
-        list: r,
-        nextPageToken: `${r[r.length - 1].id}|${oldTotal + limit}`,
-      };
-      return result;
+    return findWithMap<Video>(this.videosCollection, undefined, this.id, undefined, sort, limit, skip, project).then((list) => {
+      return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
 }
-export const formatPlaylistVideo = (r: PlaylistVideo[]) => {
-  const list = r.map((item) => {
-    return {
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      publishedAt: item.publishedAt,
-      standardThumbnail: item.standardThumbnail,
-      maxresThumbnail: item.maxresThumbnail,
-      channelId: item.channelId,
-      channelTitle: item.channelTitle,
-      localizedTitle: item.localizedTitle,
-      localizedDescription: item.localizedDescription,
-      videoOwnerChannelId: item.channelId,
-      videoOwnerChannelTitle: item.channelTitle,
-    };
-  });
-  return list;
-};
+
+export function getNextPageToken<T>(list: T[], limit: number, skip: number, name?: string): string {
+  if (!name || name.length === 0) {
+    name = "id";
+  }
+  if (list && list.length < limit) {
+    return undefined;
+  } else {
+    return list && list.length > 1 ? `${list[list.length - 1][name]}|${skip + limit}` : undefined;
+  }
+}
+export function getLimit(limit?: number, d?: number): number {
+  if (limit) {
+    return limit;
+  }
+  if (d && d > 0) {
+    return d;
+  }
+  return 12;
+}
+export function getSkip(nextPageToken: string): number {
+  if (nextPageToken) {
+    const arr = nextPageToken.toString().split("|");
+    if (arr.length < 2) {
+      return undefined;
+    }
+    if (isNaN(arr[1] as any)) {
+      return 0;
+    }
+    const n = parseFloat(arr[1]);
+    const s = n.toFixed(0);
+    return parseFloat(s);
+  }
+  return 0;
+}
