@@ -69,10 +69,6 @@ export class MongoTubeService implements VideoService {
     const skip = getSkip(nextPageToken);
     const filter: FilterQuery<any> = { _id: playlistId };
     return findOne<PlaylistCollection>(this.playlistVideoCollection, filter, this.id).then((playlist) => {
-      let checkNext = false;
-      if (skip + limit === playlist.videos.length) {
-        checkNext = true;
-      }
       const ids = playlist.videos.slice(skip, skip + limit);
       const query: FilterQuery<any> = { _id: { $in: ids } };
       const map: StringMap = {
@@ -83,7 +79,6 @@ export class MongoTubeService implements VideoService {
       const project = buildProject(fields, this.playlistVideoFields, map);
       return findAllWithMap<PlaylistVideo>(this.videosCollection, query, this.id, map, undefined, project).then((list) => {
         const result: ListResult<PlaylistVideo> = { list };
-        // result.nextPageToken = checkNext ? undefined : `${ids[ids.length - 1]}|${skip + ids.length}`;
         result.nextPageToken = getNextPageToken(list, limit, skip);
         result.total = playlist.videos.length;
         result.limit = playlist.videos.length;
