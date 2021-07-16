@@ -1,5 +1,5 @@
-import { Collection, Db, FilterQuery, SortOptionObject } from 'mongodb';
-import { CategoryCollection, Channel, ChannelSM, Item, ItemSM, ListResult, Playlist, PlaylistCollection, PlaylistSM, PlaylistVideo, Video, VideoCategory, VideoService, YoutubeClient } from '../../video-plus';
+import { Collection, Db, FilterQuery } from 'mongodb';
+import { CategoryCollection, Channel, ChannelSM, getLimit, isEmpty, Item, ItemSM, ListResult, Playlist, PlaylistCollection, PlaylistSM, PlaylistVideo, Video, VideoCategory, VideoService, YoutubeClient } from '../../video-plus';
 import { buildProject, findAllWithMap, findOne, findWithMap, StringMap, upsert } from './mongo';
 
 export class MongoTubeService implements VideoService {
@@ -138,7 +138,7 @@ export class MongoTubeService implements VideoService {
       relevance: 'publishedAt',
       rating: 'publishedAt',
     };
-    const sort = { [getMapField(itemSM.order, map)]: -1 };
+    const sort = { [getMapField(itemSM.sort, map)]: -1 };
     const query = buildVideoQuery(itemSM);
     return findWithMap<Item>(this.videosCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
@@ -153,7 +153,7 @@ export class MongoTubeService implements VideoService {
       relevance: 'publishedAt',
       rating: 'publishedAt',
     };
-    const sort = { [getMapField(itemSM.order, map)]: -1 };
+    const sort = { [getMapField(itemSM.sort, map)]: -1 };
     const query = buildItemQuery(itemSM);
     return findWithMap<any>(this.videosCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
@@ -168,7 +168,7 @@ export class MongoTubeService implements VideoService {
       relevance: 'publishedAt',
       rating: 'publishedAt',
     };
-    const sort = { [getMapField(playlistSM.order, map)]: -1 };
+    const sort = { [getMapField(playlistSM.sort, map)]: -1 };
     const query = buildPlaylistQuery(playlistSM);
     return findWithMap<any>(this.playlistCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
@@ -184,7 +184,7 @@ export class MongoTubeService implements VideoService {
       rating: 'publishedAt',
       viewCount: 'playlistVideoItemCount',
     };
-    const sort = { [getMapField(channelSM.order, map)]: -1 };
+    const sort = { [getMapField(channelSM.sort, map)]: -1 };
     const query = buildChannelQuery(channelSM);
     return findWithMap<any>(this.channelsCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
@@ -234,7 +234,8 @@ export class MongoTubeService implements VideoService {
     limit = getLimit(limit);
     const skip = getSkip(nextPageToken);
     const sort = { publishedAt: -1 };
-    return findWithMap<Video>(this.videosCollection, undefined, this.id, undefined, sort, limit, skip, project).then((list) => {
+    const query: FilterQuery<Video> = { blockedRegions: { $ne: regionCode } };
+    return findWithMap<Video>(this.videosCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
@@ -260,6 +261,10 @@ export function buildPlaylistQuery(s: PlaylistSM): FilterQuery<Playlist> {
   }
   if (s.publishedBefore && s.publishedAfter) {
     query.publishedAt = { $gt: s.publishedBefore, $lte: s.publishedAfter };
+  } else if (s.publishedAfter) {
+    query.publishedAt = { $lte: s.publishedAfter };
+  } else if (s.publishedBefore) {
+    query.publishedAt = { $gt: s.publishedBefore };
   }
   if (!isEmpty(s.channelId)) {
     query.channelId = s.channelId;
@@ -292,6 +297,13 @@ export function buildChannelQuery(s: ChannelSM): FilterQuery<Channel> {
         },
       },
     ];
+  }
+  if (s.publishedBefore && s.publishedAfter) {
+    query.publishedAt = { $gt: s.publishedBefore, $lte: s.publishedAfter };
+  } else if (s.publishedAfter) {
+    query.publishedAt = { $lte: s.publishedAfter };
+  } else if (s.publishedBefore) {
+    query.publishedAt = { $gt: s.publishedBefore };
   }
   if (!isEmpty(s.channelId)) {
     query.channelId = s.channelId;
@@ -332,6 +344,15 @@ export function buildVideoQuery(s: ItemSM): FilterQuery<Item> {
   }
   if (s.publishedBefore && s.publishedAfter) {
     query.publishedAt = { $gt: s.publishedBefore, $lte: s.publishedAfter };
+  } else if (s.publishedAfter) {
+    query.publishedAt = { $lte: s.publishedAfter };
+  } else if (s.publishedBefore) {
+    query.publishedAt = { $gt: s.publishedBefore };
+  }
+  if (!isEmpty(s.regionCode)) {
+    query['blockedRegions'] = {
+      $ne: s.regionCode,
+    };
   }
   if (!isEmpty(s.q)) {
     query.$or = [
@@ -366,9 +387,6 @@ export function getMapField(name: string, map?: StringMap): string {
   return name;
 }
 
-export function isEmpty(s: string): boolean {
-  return !(s && s.length > 0);
-}
 export function getNextPageToken<T>(list: T[], limit: number, skip: number, name?: string): string {
   if (!name || name.length === 0) {
     name = 'id';
@@ -378,15 +396,6 @@ export function getNextPageToken<T>(list: T[], limit: number, skip: number, name
   } else {
     return list && list.length > 0 ? `${list[list.length - 1][name]}|${skip + limit}` : undefined;
   }
-}
-export function getLimit(limit?: number, d?: number): number {
-  if (limit) {
-    return limit;
-  }
-  if (d && d > 0) {
-    return d;
-  }
-  return 12;
 }
 export function getSkip(nextPageToken: string): number {
   if (nextPageToken) {

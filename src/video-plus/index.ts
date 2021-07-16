@@ -64,6 +64,9 @@ export const videoFields = [
   'licensedContent', 'liveBroadcastContent', 'localizedDescription', 'localizedTitle', 'maxresThumbnail',
   'mediumThumbnail', 'projection', 'publishedAt', 'standardThumbnail', 'tags', 'thumbnail', 'title', 'blockedRegions', 'allowedRegions'
 ];
+export function isEmpty(s: string): boolean {
+  return !(s && s.length > 0);
+}
 export function getFields(fields: string[], all?: string[]): string[] {
   if (!fields || fields.length === 0) {
     return undefined;
@@ -84,6 +87,60 @@ export function getFields(fields: string[], all?: string[]): string[] {
     return fields;
   }
 }
+export function getLimit(limit?: number, d?: number): number {
+  if (limit) {
+    return limit;
+  }
+  if (d && d > 0) {
+    return d;
+  }
+  return 48;
+}
+export function map<T>(obj: T, m?: StringMap): any {
+  if (!m) {
+    return obj;
+  }
+  const mkeys = Object.keys(m);
+  if (mkeys.length === 0) {
+    return obj;
+  }
+  const obj2: any = {};
+  const keys = Object.keys(obj);
+  for (const key of keys) {
+    let k0 = m[key];
+    if (!k0) {
+      k0 = key;
+    }
+    obj2[k0] = obj[key];
+  }
+  return obj2;
+}
+export function mapArray<T>(results: T[], m?: StringMap): T[] {
+  if (!m) {
+    return results;
+  }
+  const mkeys = Object.keys(m);
+  if (mkeys.length === 0) {
+    return results;
+  }
+  const objs = [];
+  const length = results.length;
+  for (let i = 0; i < length; i++) {
+    const obj = results[i];
+    const obj2: any = {};
+    const keys = Object.keys(obj);
+    for (const key of keys) {
+      let k0 = m[key];
+      if (!k0) {
+        k0 = key;
+      }
+      obj2[k0] = (obj as any)[key];
+    }
+    objs.push(obj2);
+  }
+  return objs;
+}
+
 export function buildShownItems<T extends Title>(keyword: string, all: T[], includeDescription?: boolean): T[] {
   if (!all) {
     return [];
@@ -223,7 +280,11 @@ export class YoutubeClient implements VideoService {
       return this.getChannels([id]).then(res => {
         const channel = res && res.length > 0 ? res[0] : null;
         if (channel) {
-          this.channelCache[id] = { item: channel, timestamp: new Date() };
+          const d = new Date();
+          this.channelCache[id] = { item: channel, timestamp: d};
+          if (channel.customUrl && channel.customUrl.length > 0) {
+            this.channelCache[channel.customUrl] = { item: channel, timestamp: d};
+          }
           removeCache(this.channelCache, this.maxChannel);
         }
         return channel;
@@ -324,8 +385,9 @@ export class YoutubeClient implements VideoService {
   }
   search(sm: ItemSM, max?: number, nextPageToken?: string | number): Promise<ListResult<Item>> {
     const searchType = sm.type ? `&type=${sm.type}` : '';
-    const searchDuration = sm.type === 'video' && (sm.videoDuration === 'long' || sm.videoDuration === 'medium' || sm.videoDuration === 'short') ? `&videoDuration=${sm.videoDuration}` : '';
-    const searchOrder = (sm.order === 'date' || sm.order === 'rating' || sm.order === 'title' || sm.order === 'videoCount' || sm.order === 'viewCount') ? `&order=${sm.order}` : '';
+    const searchDuration = (sm.videoDuration === 'long' || sm.videoDuration === 'medium' || sm.videoDuration === 'short') ? `&videoDuration=${sm.videoDuration}` : '';
+    const s = getYoutubeSort(sm.sort);
+    const searchOrder = (s ? `&order=${s}` : '');
     const regionParam = (sm.regionCode && sm.regionCode.length > 0 ? `&regionCode=${sm.regionCode}` : '');
     const pageToken = (nextPageToken ? `&pageToken=${nextPageToken}` : '');
     const maxResults = (max && max > 0 ? max : 50); // maximum is 50
@@ -381,12 +443,31 @@ export class YoutubeClient implements VideoService {
   getRelatedVideos(videoId: string, max?: number, nextPageToken?: string): Promise<ListResult<Item>> {
     return this.getPopularVideos('US').then(list => list as any);
     /*
-    const maxResults = (max && max > 0 ? max : 12);
+    const maxResults = (max && max > 0 ? max : 24);
     const pageToken = (nextPageToken ? `&pageToken=${nextPageToken}` : '');
     const url = `https://youtube.googleapis.com/youtube/v3/search?key=${this.key}&relatedToVideoId=${videoId}&type=video&regionCode=VN&maxResults=${maxResults}${pageToken}&part=snippet`;
     return this.httpRequest.get<YoutubeListResult<ListItem<SearchId, SearchSnippet, any>>>(url).then(res => fromYoutubeSearch(res));
     */
   }
+}
+// date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast) => title, date => publishedAt, relevance => rank, count => videoCount
+export const youtubeSortMap: StringMap = {
+  publishedAt: 'date',
+  rank: 'rating',
+  count: 'videoCount'
+};
+export function getYoutubeSort(s: string): string {
+  if (!s || s.length === 0) {
+    return undefined;
+  }
+  const s2 = youtubeSortMap[s];
+  if (s2) {
+    return s2;
+  }
+  if (s === 'date' || s === 'rating' || s === 'title' || s === 'videoCount' || s === 'viewCount') { // s === 'relevance'
+    return s;
+  }
+  return undefined;
 }
 export function fromYoutubeCategories(res: YoutubeListResult<ListItem<string, CategorySnippet, any>>): VideoCategory[] {
   return res.items.filter(i => i.snippet).map(item => {

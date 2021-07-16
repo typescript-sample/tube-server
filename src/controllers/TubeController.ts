@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { CategoryCollection, ChannelSM, ItemSM, PlaylistSM, VideoCategory, VideoService, YoutubeClient } from '../video-plus';
+import { ChannelSM, ItemSM, PlaylistSM, VideoService } from '../video-plus';
 import { handleError, query, queryDate, queryNumber, queryParam, queryParams, queryRequiredParams, respondModel } from './util';
 
 export class TubeController {
@@ -22,7 +22,7 @@ export class TubeController {
     this.getPopularVideosByCategory = this.getPopularVideosByCategory.bind(this);
     this.getPopularVideosByRegion = this.getPopularVideosByRegion.bind(this);
   }
-  async getCategory(req: Request, res: Response) {
+  getCategory(req: Request, res: Response) {
     const regionCode = queryParam(req, res, 'regionCode');
     if (regionCode) {
       this.videoService
@@ -135,11 +135,12 @@ export class TubeController {
     const fields = queryParams(req, 'fields');
     const channelId = query(req, 'channelId');
     const q = query(req, 'q', '');
-    const order = query(req, 'order');
+    const sort = query(req, 'sort');
+    const regionCode = query(req, 'regionCode');
     const videoDuration = duration ? duration.toString() : 'any';
     const publishedBefore = queryDate(req, 'publishedBefore');
     const publishedAfter = queryDate(req, 'publishedAfter');
-    const itemSM: ItemSM = { channelId, q, videoDuration, order, publishedAfter, publishedBefore };
+    const itemSM: ItemSM = { channelId, q, videoDuration, sort, publishedAfter, publishedBefore, regionCode };
     this.videoService
       .searchVideos(itemSM, limit, nextPageToken, fields)
       .then((results) => res.status(200).json(results))
@@ -150,11 +151,11 @@ export class TubeController {
     const nextPageToken = query(req, 'nextPageToken');
     const fields = queryParams(req, 'fields');
     const channelId = query(req, 'channelId');
-    const order = query(req, 'order');
+    const sort = query(req, 'sort');
     const publishedBefore = queryDate(req, 'publishedBefore');
     const publishedAfter = queryDate(req, 'publishedAfter');
     const q = query(req, 'q', '');
-    const playlistSM: PlaylistSM = { channelId, q, order, publishedAfter, publishedBefore };
+    const playlistSM: PlaylistSM = { channelId, q, sort, publishedAfter, publishedBefore };
     this.videoService
       .searchPlaylists(playlistSM, limit, nextPageToken, fields)
       .then((results) => res.status(200).json(results))
@@ -165,9 +166,9 @@ export class TubeController {
     const nextPageToken = query(req, 'nextPageToken');
     const fields = queryParams(req, 'fields');
     const channelId = query(req, 'channelId');
-    const order = query(req, 'order');
+    const sort = query(req, 'sort');
     const q = query(req, 'q', '');
-    const channelSM: ChannelSM = { channelId, q, order };
+    const channelSM: ChannelSM = { channelId, q, sort };
     this.videoService
       .searchChannels(channelSM, limit, nextPageToken, fields)
       .then((results) => res.status(200).json(results))

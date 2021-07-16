@@ -6,8 +6,7 @@ export interface ListResult<T> {
 }
 export interface ChannelSM {
   q?: string;
-  order?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
-  nextPageToken?: string;
+  sort?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
   forMine?: boolean;
   channelId?: string;
   channelType?: string; // any, show
@@ -20,8 +19,7 @@ export interface ChannelSM {
 }
 export interface PlaylistSM {
   q?: string;
-  order?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
-  nextPageToken?: string;
+  sort?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
   forMine?: boolean;
   channelId?: string;
   channelType?: string; // any, show
@@ -35,7 +33,7 @@ export interface ItemSM {
   q?: string;
   type?: string; // video, channel, playlist
   videoDuration?: string; // any, long (more than 20 minutes), medium (from 4 minutes to 20 minutes), short (less than 4 minutes)
-  order?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
+  sort?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast) => title, date => publishedAt, relevance => rank, count => videoCount
   relatedToVideoId?: string;
   forMine?: boolean;
   channelId?: string;
