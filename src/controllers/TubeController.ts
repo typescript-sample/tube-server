@@ -28,7 +28,6 @@ export class TubeController {
       this.videoService
         .getCagetories(regionCode)
         .then((r) => {
-          console.log(r);
           return res.status(200).json(r);
         })
         .catch((err) => handleError(err, res, this.log));

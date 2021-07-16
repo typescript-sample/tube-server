@@ -17,7 +17,6 @@ export class MongoTubeService implements VideoService {
     this.videosCollection = db.collection('video');
     this.playlistVideoCollection = db.collection('playlistVideo');
     this.categoryCollection = db.collection('category');
-    this.saveCategory = this.saveCategory.bind(this);
     this.getVideo = this.getVideo.bind(this);
     this.getVideos = this.getVideos.bind(this);
     this.playlistVideoFields = ['_id', 'title', 'description', 'publishedAt', 'channelId', 'channelTitle', 'localizedTitle', 'localizedDescription', 'thumbnail', 'mediumThumbnail', 'highThumbnail', 'standardThumbnail', 'maxresThumbnail'];
@@ -25,7 +24,14 @@ export class MongoTubeService implements VideoService {
   }
   getChannel(channelId: string, fields?: string[]): Promise<Channel> {
     const query: FilterQuery<any> = { _id: channelId };
-    return findOne<Channel>(this.channelsCollection, query, this.id);
+    return findOne<Channel>(this.channelsCollection, query, this.id).then((c) => {
+      if (c) {
+        return Promise.resolve(c);
+      } else {
+        const q: FilterQuery<Channel> = { customUrl: channelId };
+        return findOne<Channel>(this.channelsCollection, q, this.id);
+      }
+    });
   }
   getChannels(channelIds: string[], fields?: string[]): Promise<Channel[]> {
     const project = buildProject(fields, undefined, this.idMap, true);
@@ -57,10 +63,6 @@ export class MongoTubeService implements VideoService {
   }
   getVideo(videoId: string, fields?: string[]): Promise<Video> {
     return this.getVideos([videoId], fields).then((videos) => (videos && videos.length > 0 ? videos[0] : null));
-  }
-  getPlaylistVideo(id: string, fields?: string[]): Promise<PlaylistCollection> {
-    const query: FilterQuery<any> = { _id: id };
-    return findOne<PlaylistCollection>(this.playlistVideoCollection, query, this.id);
   }
   getPlaylistVideos(playlistId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>> {
     limit = getLimit(limit);
@@ -104,10 +106,6 @@ export class MongoTubeService implements VideoService {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
-  getVideoByPlaylistId(videoIds: string[]): Promise<Video[]> {
-    const query: FilterQuery<any> = { _id: videoIds };
-    return findWithMap<Video>(this.videosCollection, query, this.id);
-  }
   getCagetories(regionCode: string): Promise<VideoCategory[]> {
     const query: FilterQuery<any> = { _id: regionCode };
     return findOne<CategoryCollection>(this.categoryCollection, query).then((category) => {
@@ -120,14 +118,11 @@ export class MongoTubeService implements VideoService {
             id: regionCode,
             data: categoryToSave,
           };
-          await this.saveCategory(newCategoryCollection);
+          await upsert(this.categoryCollection, newCategoryCollection, this.id);
           return categoryToSave;
         });
       }
     });
-  }
-  saveCategory(category: CategoryCollection): Promise<number> {
-    return upsert(this.categoryCollection, category, this.id);
   }
   searchVideos(itemSM: ItemSM, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
     const project = buildProject(fields, undefined, this.idMap, true);
