@@ -95,6 +95,12 @@ export interface PlaylistItemInfo {
   videoOwnerChannelTitle?: string;
 }
 export interface PlaylistVideo extends ItemInfo, BigThumbnail, PlaylistItemInfo {
+  duration?: number;
+  dimension?: string;
+  definition?: number; // 0: 144, 1: 240, 2: 360, 3: 480, 4: 720, 5: 1080, 6: 1440, 7: 2160
+  caption?: boolean;
+  licensedContent?: boolean;
+  projection?: string;
 }
 export interface VideoInfo {
   tags?: string[];
@@ -214,8 +220,7 @@ export interface ResourceId extends YoutubeKind {
 export interface PlaylistVideoSnippet extends PlaylistItemInfo, BaseSnippet {
   resourceId: ResourceId;
 }
-export interface VideoSnippet extends BaseSnippet, VideoInfo {
-}
+export interface VideoSnippet extends BaseSnippet, VideoInfo {}
 export interface YoutubeListResult<T> extends YoutubeKind {
   etag: string;
   items: T[];

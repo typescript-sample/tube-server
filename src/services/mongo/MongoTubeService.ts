@@ -19,7 +19,7 @@ export class MongoTubeService implements VideoService {
     this.categoryCollection = db.collection('category');
     this.getVideo = this.getVideo.bind(this);
     this.getVideos = this.getVideos.bind(this);
-    this.playlistVideoFields = ['_id', 'title', 'description', 'publishedAt', 'channelId', 'channelTitle', 'localizedTitle', 'localizedDescription', 'thumbnail', 'mediumThumbnail', 'highThumbnail', 'standardThumbnail', 'maxresThumbnail'];
+    this.playlistVideoFields = ['_id', 'title', 'description', 'publishedAt', 'channelId', 'channelTitle', 'localizedTitle', 'localizedDescription', 'thumbnail', 'mediumThumbnail', 'highThumbnail', 'standardThumbnail', 'maxresThumbnail', 'definition', 'duration'];
     this.idMap = { id: '_id' };
   }
   getChannel(channelId: string, fields?: string[]): Promise<Channel> {
