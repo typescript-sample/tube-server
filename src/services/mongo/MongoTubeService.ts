@@ -128,7 +128,7 @@ export class MongoTubeService implements VideoService {
       relevance: 'publishedAt',
       rating: 'publishedAt',
     };
-    const sort = { [getMapField(itemSM.sort, map)]: -1 };
+    const sort = itemSM.sort ? { [getMapField(itemSM.sort, map)]: -1 } : undefined;
     const query = buildVideoQuery(itemSM);
     return findWithMap<Item>(this.videosCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
@@ -143,7 +143,7 @@ export class MongoTubeService implements VideoService {
       relevance: 'publishedAt',
       rating: 'publishedAt',
     };
-    const sort = { [getMapField(itemSM.sort, map)]: -1 };
+    const sort = itemSM.sort ? { [getMapField(itemSM.sort, map)]: -1 } : undefined;
     const query = buildItemQuery(itemSM);
     return findWithMap<any>(this.videosCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
@@ -158,7 +158,7 @@ export class MongoTubeService implements VideoService {
       relevance: 'publishedAt',
       rating: 'publishedAt',
     };
-    const sort = { [getMapField(playlistSM.sort, map)]: -1 };
+    const sort = playlistSM.sort ? { [getMapField(playlistSM.sort, map)]: -1 } : undefined;
     const query = buildPlaylistQuery(playlistSM);
     return findWithMap<any>(this.playlistCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
@@ -174,7 +174,7 @@ export class MongoTubeService implements VideoService {
       rating: 'publishedAt',
       viewCount: 'playlistVideoItemCount',
     };
-    const sort = { [getMapField(channelSM.sort, map)]: -1 };
+    const sort = channelSM.sort ? { [getMapField(channelSM.sort, map)]: -1 } : undefined;
     const query = buildChannelQuery(channelSM);
     return findWithMap<any>(this.channelsCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
