@@ -71,7 +71,7 @@ export function queryRequiredNumber(req: Request, res: Response, name: string): 
 }
 export function queryNumber(req: Request, name: string, d?: number): number {
   const field = req.query[name];
-  const v = field.toString();
+  const v = field ? field.toString() : undefined;
   if (!v || v.length === 0) {
     return d;
   }
