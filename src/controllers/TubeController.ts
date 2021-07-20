@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { ChannelSM, ItemSM, PlaylistSM, VideoService } from '../video-plus';
+import { ChannelSM, Duration, ItemSM, PlaylistSM, SortType, VideoService } from '../video-plus';
 import { handleError, query, queryDate, queryNumber, queryParam, queryParams, queryRequiredParams, respondModel } from './util';
 
 export class TubeController {
@@ -134,12 +134,12 @@ export class TubeController {
     const fields = queryParams(req, 'fields');
     const channelId = query(req, 'channelId');
     const q = query(req, 'q', '');
-    const sort = query(req, 'sort');
+    const sort = query(req, 'sort') as SortType;
     const regionCode = query(req, 'regionCode');
-    const videoDuration = duration ? duration.toString() : 'any';
+    const videoDuration = (duration ? duration.toString() : 'any') as Duration;
     const publishedBefore = queryDate(req, 'publishedBefore');
     const publishedAfter = queryDate(req, 'publishedAfter');
-    const itemSM: ItemSM = { channelId, q, videoDuration, sort, publishedAfter, publishedBefore, regionCode };
+    const itemSM: ItemSM = { channelId, q, duration: videoDuration, sort, publishedAfter, publishedBefore, regionCode };
     this.videoService
       .searchVideos(itemSM, limit, nextPageToken, fields)
       .then((results) => res.status(200).json(results))
@@ -150,7 +150,7 @@ export class TubeController {
     const nextPageToken = query(req, 'nextPageToken');
     const fields = queryParams(req, 'fields');
     const channelId = query(req, 'channelId');
-    const sort = query(req, 'sort');
+    const sort = query(req, 'sort') as SortType;
     const publishedBefore = queryDate(req, 'publishedBefore');
     const publishedAfter = queryDate(req, 'publishedAfter');
     const q = query(req, 'q', '');
@@ -165,7 +165,7 @@ export class TubeController {
     const nextPageToken = query(req, 'nextPageToken');
     const fields = queryParams(req, 'fields');
     const channelId = query(req, 'channelId');
-    const sort = query(req, 'sort');
+    const sort = query(req, 'sort') as SortType;
     const q = query(req, 'q', '');
     const channelSM: ChannelSM = { channelId, q, sort };
     this.videoService

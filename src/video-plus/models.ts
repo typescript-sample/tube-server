@@ -6,7 +6,7 @@ export interface ListResult<T> {
 }
 export interface ChannelSM {
   q?: string;
-  sort?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
+  sort?: SortType; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
   forMine?: boolean;
   channelId?: string;
   channelType?: string; // any, show
@@ -19,7 +19,7 @@ export interface ChannelSM {
 }
 export interface PlaylistSM {
   q?: string;
-  sort?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
+  sort?: SortType; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
   forMine?: boolean;
   channelId?: string;
   channelType?: string; // any, show
@@ -29,30 +29,42 @@ export interface PlaylistSM {
   relevanceLanguage?: string;
   safeSearch?: string; // moderate, none, strict
 }
+export type ChannelType = 'show' | 'any';
+export type EventType = 'completed' | 'live' | 'upcoming';
+export type ItemType = 'video' | 'channel' | 'playlist' | 'any';
+export type Duration = 'long' | 'medium' | 'short' | 'any';
+export type Caption = 'closedCaption' | 'none' | 'any';
+export type Definition = 'high' | 'standard' | 'any';
+export type Dimension = '2d' | '3d' | 'any';
+export type EmbeddableType = 'true' | 'any';
+export type LicenseType = 'creativeCommon' | 'youtube' | 'any';
+export type SyndicatedType = 'true' | 'any';
+export type VideoType = 'movie' | 'episode' | 'any';
+export type SortType = 'rating' | 'date' | 'count' | 'relevance' | 'title' | 'viewCount';
 export interface ItemSM {
   q?: string;
-  type?: string; // video, channel, playlist
-  videoDuration?: string; // any, long (more than 20 minutes), medium (from 4 minutes to 20 minutes), short (less than 4 minutes)
-  sort?: string; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast) => title, date => publishedAt, relevance => rank, count => videoCount
+  type?: ItemType; // video, channel, playlist
+  duration?: Duration; // any, long (more than 20 minutes), medium (from 4 minutes to 20 minutes), short (less than 4 minutes)
+  sort?: SortType; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast) => title, date => publishedAt, relevance => rank, count => videoCount
   relatedToVideoId?: string;
   forMine?: boolean;
   channelId?: string;
-  channelType?: string; // any, show
-  eventType?: string; // completed, live, upcoming
+  channelType?: ChannelType; // any, show
+  eventType?: EventType; // completed, live, upcoming
   publishedAfter?: Date;
   publishedBefore?: Date;
   regionCode?: string;
   relevanceLanguage?: string;
   safeSearch?: string; // moderate, none, strict
   topicId?: string;
-  videoCaption?: string; // any, closedCaption, none
-  videoCategoryId?: string;
-  videoDefinition?: string; // any, high, standard
-  videoDimension?: string; // 2d, 3d, any
-  videoEmbeddable?: string; // any, true
-  videoLicense?: string; // any, creativeCommon, youtube
-  videoSyndicated?: string; // any, true
-  videoType?: string; // any, episode, movie
+  categoryId?: string;
+  caption?: Caption; // any, closedCaption, none
+  definition?: Definition; // any, high, standard
+  dimension?: Dimension; // 2d, 3d, any
+  embeddable?: EmbeddableType; // any, true
+  license?: LicenseType; // any, creativeCommon, youtube
+  syndicated?: SyndicatedType; // any, true
+  videoType?: SyndicatedType; // any, episode, movie
 }
 export interface Item extends Title, Thumbnail, ChannelInfo {
   kind?: string; // video, channel, playlist

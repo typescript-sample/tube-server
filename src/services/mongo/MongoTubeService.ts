@@ -317,10 +317,10 @@ export function buildItemQuery(s: ItemSM): FilterQuery<Item> {
 }
 export function buildVideoQuery(s: ItemSM): FilterQuery<Item> {
   const query: FilterQuery<Item> = {};
-  if (!isEmpty(s.videoDuration)) {
-    switch (s.videoDuration) {
+  if (!isEmpty(s.duration)) {
+    switch (s.duration) {
       case 'short':
-        query['duration'] = { $gt: 0, $lte: 240 };
+        query['duration'] = { $lte: 240 };
         break;
       case 'medium':
         query['duration'] = { $gt: 240, $lte: 1200 };

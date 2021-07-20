@@ -194,6 +194,9 @@ export interface SyncService {
   syncPlaylists(playlistIds: string[], level?: number): Promise<number>;
 }
 
+export type CommentOrder = 'time' | 'relevance';
+export type TextFormat = 'html' | 'plainText';
+
 export interface VideoService {
   getCagetories(regionCode?: string): Promise<VideoCategory[]>;
   getChannels(ids: string[], fields?: string[]): Promise<Channel[]>;
@@ -206,8 +209,8 @@ export interface VideoService {
   getPopularVideos(regionCode?: string, videoCategoryId?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>>;
   getPopularVideosByRegion(regionCode?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>>;
   getPopularVideosByCategory(videoCategoryId?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>>;
-  getVideos(ids: string[], fields?: string[], noSnippet?: boolean): Promise<Video[]>;
-  getVideo(id: string, fields?: string[], noSnippet?: boolean): Promise<Video>;
+  getVideos(ids: string[], fields?: string[]): Promise<Video[]>;
+  getVideo(id: string, fields?: string[]): Promise<Video>;
   search(sm: ItemSM, max?: number, nextPageToken?: string | number, fields?: string[]): Promise<ListResult<Item>>;
   getRelatedVideos?(videoId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>>;
   searchVideos?(sm: ItemSM, max?: number, nextPageToken?: string | number, fields?: string[]): Promise<ListResult<Item>>;
@@ -218,7 +221,7 @@ export interface VideoService {
    * @param order relevance, time (default)
    * @param nextPageToken
    */
-  getCommentThreads?(videoId: string, order?: string, max?: number, nextPageToken?: string): Promise<ListResult<CommentThead>>;
+  getCommentThreads?(videoId: string, order?: CommentOrder, max?: number, nextPageToken?: string): Promise<ListResult<CommentThead>>;
   getComments?(id: string, max?: number, nextPageToken?: string): Promise<ListResult<Comment>>;
 }
 export interface CacheItem<T> {
@@ -385,7 +388,7 @@ export class YoutubeClient implements VideoService {
   }
   search(sm: ItemSM, max?: number, nextPageToken?: string | number): Promise<ListResult<Item>> {
     const searchType = sm.type ? `&type=${sm.type}` : '';
-    const searchDuration = (sm.videoDuration === 'long' || sm.videoDuration === 'medium' || sm.videoDuration === 'short') ? `&videoDuration=${sm.videoDuration}` : '';
+    const searchDuration = (sm.duration === 'long' || sm.duration === 'medium' || sm.duration === 'short') ? `&videoDuration=${sm.duration}` : '';
     const s = getYoutubeSort(sm.sort);
     const searchOrder = (s ? `&order=${s}` : '');
     const regionParam = (sm.regionCode && sm.regionCode.length > 0 ? `&regionCode=${sm.regionCode}` : '');
