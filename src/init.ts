@@ -13,7 +13,7 @@ export function createContext(db: Db, key: string): ApplicationContext {
   const httpRequest = new HttpRequest(axios);
   const client = new YoutubeClient(key, httpRequest);
   const tubeService = new MongoTubeService(db, client);
-  const tubeController = new TubeController(tubeService, log);
+  const tubeController = new TubeController(tubeService, log, true);
   const videoRepository = new MongoVideoRepository(db);
   const syncService = new DefaultSyncService(client, videoRepository);
   const syncController = new SyncController(syncService);

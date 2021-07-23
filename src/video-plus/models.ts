@@ -1,12 +1,16 @@
+export interface StringMap {
+  [key: string]: string;
+}
 export interface ListResult<T> {
   list?: T[];
   total?: number;
   limit?: number;
   nextPageToken?: string;
 }
+export type ChannelSortType = 'title' | 'count' | 'date';
 export interface ChannelSM {
   q?: string;
-  sort?: SortType; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
+  sort?: SortType; // date, rating, relevance, title, count (for channels)
   forMine?: boolean;
   channelId?: string;
   channelType?: string; // any, show
@@ -17,9 +21,10 @@ export interface ChannelSM {
   safeSearch?: string; // moderate, none, strict
   topicId?: string;
 }
+export type PlaylistSortType = 'title' | 'count' | 'date';
 export interface PlaylistSM {
   q?: string;
-  sort?: SortType; // date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast)
+  sort?: SortType; // date, rating, relevance, title, count (for channels), viewCount (for live broadcast)
   forMine?: boolean;
   channelId?: string;
   channelType?: string; // any, show
@@ -232,7 +237,8 @@ export interface ResourceId extends YoutubeKind {
 export interface PlaylistVideoSnippet extends PlaylistItemInfo, BaseSnippet {
   resourceId: ResourceId;
 }
-export interface VideoSnippet extends BaseSnippet, VideoInfo {}
+export interface VideoSnippet extends BaseSnippet, VideoInfo {
+}
 export interface YoutubeListResult<T> extends YoutubeKind {
   etag: string;
   items: T[];

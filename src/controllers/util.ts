@@ -19,15 +19,20 @@ export function handleError(err: any, res: Response, lg?: (msg: string, ctx?: an
   }
 }
 export function queryRequiredParams(req: Request, res: Response, name: string, split?: string): string[] {
-  const v = req.query[name].toString();
-  if (!v || v.length === 0) {
+  const v = req.query[name];
+  if (!v) {
+    res.status(400).end(`'${name}' cannot be empty`);
+    return undefined;
+  }
+  const v2 = v.toString();
+  if (v2.length === 0) {
     res.status(400).end(`'${name}' cannot be empty`);
     return undefined;
   }
   if (!split) {
     split = ',';
   }
-  return v.split(split);
+  return v2.split(split);
 }
 export function queryParams(req: Request, name: string, d?: string[], split?: string): string[] {
   const q = req.query[name];
