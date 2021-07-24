@@ -3,7 +3,7 @@ import { buildProject, findAllWithMap, findOne, findWithMap, isEmpty, StringMap,
 import { CategoryCollection, Channel, ChannelSM, getLimit, Item, ItemSM, ListResult, Playlist, PlaylistCollection, PlaylistSM, PlaylistVideo, Video, VideoCategory, VideoService } from '../../video-plus';
 
 
-export class MongoTubeService implements VideoService {
+export class MongoVideoService implements VideoService {
   private readonly id = 'id';
   private readonly playlistVideoFields: string[];
   private readonly idMap: StringMap;

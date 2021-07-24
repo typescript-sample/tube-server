@@ -5,7 +5,7 @@ import { ApplicationContext } from './context';
 import { SyncController } from './controllers/SyncController';
 import { TubeController } from './controllers/TubeController';
 import { log } from './controllers/util';
-import { MongoTubeService } from './services/mongo/MongoTubeService';
+import { MongoVideoService } from './services/mongo/MongoVideoService';
 import { MongoVideoRepository } from './sync/MongoSyncRepository';
 import { CategoryClient, DefaultSyncService, YoutubeSyncClient } from './video-plus';
 
@@ -20,7 +20,7 @@ export function createContext(db: Db, key: string): ApplicationContext {
   const playlistCollection = db.collection('playlist');
   const playlistVideoCollection = db.collection('playlistVideo');
   const videoCollection = db.collection('video');
-  const tubeService = new MongoTubeService(categoryCollection, channelCollection, playlistCollection, playlistVideoCollection, videoCollection, categoryClient.getCagetories);
+  const tubeService = new MongoVideoService(categoryCollection, channelCollection, playlistCollection, playlistVideoCollection, videoCollection, categoryClient.getCagetories);
   const tubeController = new TubeController(tubeService, log, true);
   const videoRepository = new MongoVideoRepository(channelCollection, channelSyncCollection, playlistCollection, playlistVideoCollection, videoCollection);
   const syncService = new DefaultSyncService(client, videoRepository);
