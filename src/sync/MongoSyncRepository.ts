@@ -1,20 +1,10 @@
-import { Collection, Db, FilterQuery } from 'mongodb';
+import { Collection, FilterQuery } from 'mongodb';
+import { findOne, findWithMap, upsert, upsertMany } from 'mongodb-extension';
 import { Channel, ChannelSync, Playlist, PlaylistCollection, SyncRepository, Video } from '../video-plus';
-import { findOne, findWithMap, upsert, upsertMany } from './mongo';
 
 export class MongoVideoRepository implements SyncRepository {
   private readonly id = 'id';
-  private readonly channelsCollection: Collection;
-  private readonly videosCollection: Collection;
-  private readonly channelSyncCollection: Collection;
-  private readonly playlistsCollection: Collection;
-  private readonly playlistVideoCollection: Collection;
-  constructor(db: Db) {
-    this.channelsCollection = db.collection('channel');
-    this.channelSyncCollection = db.collection('channelSync');
-    this.videosCollection = db.collection('video');
-    this.playlistsCollection = db.collection('playlist');
-    this.playlistVideoCollection = db.collection('playlistVideo');
+  constructor(private channelCollection: Collection, private channelSyncCollection: Collection, private playlistCollection: Collection, private playlistVideoCollection: Collection, private videoCollection: Collection) {
     this.saveVideos = this.saveVideos.bind(this);
     this.savePlaylists = this.savePlaylists.bind(this);
   }
@@ -23,19 +13,19 @@ export class MongoVideoRepository implements SyncRepository {
     return findOne<ChannelSync>(this.channelSyncCollection, query, this.id);
   }
   saveChannel(channel: Channel): Promise<number> {
-    return upsert(this.channelsCollection, channel, this.id);
+    return upsert(this.channelCollection, channel, this.id);
   }
   saveChannelSync(channel: ChannelSync): Promise<number> {
     return upsert(this.channelSyncCollection, channel, this.id);
   }
   savePlaylist(playlist: Playlist): Promise<number> {
-    return upsert(this.playlistsCollection, playlist, this.id);
+    return upsert(this.playlistCollection, playlist, this.id);
   }
   savePlaylists(playlists: Playlist[]): Promise<number> {
-    return upsertMany(this.playlistsCollection, playlists, this.id);
+    return upsertMany(this.playlistCollection, playlists, this.id);
   }
   saveVideos(videos: Video[]): Promise<number> {
-    return upsertMany(this.videosCollection, videos, this.id);
+    return upsertMany(this.videoCollection, videos, this.id);
   }
   savePlaylistVideos(id: string, videos: string[]): Promise<number> {
     const playlistVideo: PlaylistCollection = {
@@ -49,7 +39,7 @@ export class MongoVideoRepository implements SyncRepository {
     const project = {
       _id: 1,
     };
-    return findWithMap<any>(this.videosCollection, query, undefined, undefined, undefined, undefined, undefined, project).then((result) => {
+    return findWithMap<any>(this.videoCollection, query, undefined, undefined, undefined, undefined, undefined, project).then((result) => {
       return result.map((item) => item._id);
     });
   }

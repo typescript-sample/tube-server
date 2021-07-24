@@ -498,6 +498,18 @@ export class YoutubeSyncClient implements SyncClient {
     });
   }
 }
+export class CategoryClient {
+  constructor(private key: string, private httpRequest: HttpRequest) {
+    this.getCagetories = this.getCagetories.bind(this);
+  }
+  getCagetories(regionCode?: string): Promise<VideoCategory[]> {
+    if (!regionCode) {
+      regionCode = 'US';
+    }
+    const url = `https://www.googleapis.com/youtube/v3/videoCategories?key=${this.key}&regionCode=${regionCode}`;
+    return this.httpRequest.get<YoutubeListResult<ListItem<string, CategorySnippet, any>>>(url).then(res => fromYoutubeCategories(res));
+  }
+}
 export class YoutubeClient implements VideoService {
   private channelCache: Cache<Channel>;
   private playlistCache: Cache<Playlist>;
@@ -529,7 +541,7 @@ export class YoutubeClient implements VideoService {
     if (!regionCode) {
       regionCode = 'US';
     }
-    const url = `https://www.googleapis.com/youtube/v3/videoCategories?key=AIzaSyDVRw8jjqyJWijg57zXSOMpUArlZGpC7bE&regionCode=${regionCode}`;
+    const url = `https://www.googleapis.com/youtube/v3/videoCategories?key=${this.key}&regionCode=${regionCode}`;
     return this.httpRequest.get<YoutubeListResult<ListItem<string, CategorySnippet, any>>>(url).then(res => fromYoutubeCategories(res));
   }
   getChannels(ids: string[]): Promise<Channel[]> {
