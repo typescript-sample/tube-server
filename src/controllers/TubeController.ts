@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { BigThumbnail, ChannelSM, Duration, ItemSM, ListResult, PlaylistSM, SortType, Thumbnail, VideoService } from '../video-plus';
+import { BigThumbnail, ChannelSM, Duration, ItemSM, ListResult, PlaylistSM, SortType, Thumbnail, VideoService } from 'video-service';
 import { handleError, param, query, queryDate, queryNumber, queryParam, queryParams, queryRequiredParams, respondModel } from './util';
 
 export class TubeController {

@@ -1,13 +1,13 @@
 import axios from 'axios';
 import { HttpRequest } from 'axios-core';
 import { Db } from 'mongodb';
+import { CategoryClient, DefaultSyncService, YoutubeSyncClient } from 'video-service';
 import { ApplicationContext } from './context';
 import { SyncController } from './controllers/SyncController';
 import { TubeController } from './controllers/TubeController';
 import { log } from './controllers/util';
 import { MongoVideoService } from './services/MongoVideoService';
 import { MongoVideoRepository } from './sync/MongoSyncRepository';
-import { CategoryClient, DefaultSyncService, YoutubeSyncClient } from './video-plus';
 
 export function createContext(db: Db, key: string): ApplicationContext {
   const httpRequest = new HttpRequest(axios);

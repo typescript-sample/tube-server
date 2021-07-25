@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { SyncService } from '../video-plus';
+import { SyncService } from 'video-service';
 
 export class SyncController {
   constructor(private service: SyncService) {

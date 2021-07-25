@@ -1,6 +1,6 @@
 import { Collection, FilterQuery } from 'mongodb';
 import { findAllWithMap, findOne, upsert, upsertMany } from 'mongodb-extension';
-import { Channel, ChannelSync, Playlist, PlaylistCollection, SyncRepository, Video } from '../video-plus';
+import { Channel, ChannelSync, Playlist, PlaylistCollection, SyncRepository, Video } from 'video-service';
 
 export class MongoVideoRepository implements SyncRepository {
   private readonly id = 'id';
