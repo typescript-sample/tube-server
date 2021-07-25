@@ -9,12 +9,13 @@ export class MongoVideoService implements VideoService {
   constructor(private categoryCollection: Collection, private channelCollection: Collection, private playlistCollection: Collection, private playlistVideoCollection: Collection, private videoCollection: Collection, private clientCagetories: (regionCode?: string) => Promise<VideoCategory[]>) {
     this.getVideo = this.getVideo.bind(this);
     this.getVideos = this.getVideos.bind(this);
+    this.getPlaylists = this.getPlaylists.bind(this);
     this.playlistVideoFields = ['_id', 'title', 'description', 'publishedAt', 'channelId', 'channelTitle', 'localizedTitle', 'localizedDescription', 'thumbnail', 'mediumThumbnail', 'highThumbnail', 'standardThumbnail', 'maxresThumbnail', 'definition', 'duration'];
     this.idMap = { id: '_id' };
   }
   getChannel(channelId: string, fields?: string[]): Promise<Channel> {
     const query: FilterQuery<any> = { _id: channelId };
-    return findOne<Channel>(this.channelCollection, query, this.id).then((c) => {
+    return findOne<Channel>(this.channelCollection, query, this.id).then(c => {
       if (c) {
         return Promise.resolve(c);
       } else {
@@ -38,11 +39,11 @@ export class MongoVideoService implements VideoService {
   }
   getChannelPlaylists(channelId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Playlist>> {
     const project = buildProject(fields);
-    const query: FilterQuery<Playlist> = { channelId };
+    const query: FilterQuery<Playlist> = { channelId, count: { $gt: 0 }};
     const sort = { publishedAt: -1 };
     limit = getLimit(limit);
     const skip = getSkip(nextPageToken);
-    return findWithMap<any>(this.playlistCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
+    return findWithMap<any>(this.playlistCollection, query, this.id, undefined, sort, limit, skip, project).then(list => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
@@ -58,7 +59,7 @@ export class MongoVideoService implements VideoService {
     limit = getLimit(limit);
     const skip = getSkip(nextPageToken);
     const filter: FilterQuery<any> = { _id: playlistId };
-    return findOne<PlaylistCollection>(this.playlistVideoCollection, filter, this.id).then((playlist) => {
+    return findOne<PlaylistCollection>(this.playlistVideoCollection, filter, this.id).then(playlist => {
       const ids = playlist.videos.slice(skip, skip + limit);
       const query: FilterQuery<any> = { _id: { $in: ids } };
       const map: StringMap = {
@@ -67,7 +68,7 @@ export class MongoVideoService implements VideoService {
         videoOwnerChannelTitle: 'channelTitle',
       };
       const project = buildProject(fields, this.playlistVideoFields, map);
-      return findAllWithMap<PlaylistVideo>(this.videoCollection, query, this.id, map, undefined, project).then((list) => {
+      return findAllWithMap<PlaylistVideo>(this.videoCollection, query, this.id, map, undefined, project).then(list => {
         const result: ListResult<PlaylistVideo> = { list };
         result.nextPageToken = getNextPageToken(list, limit, skip);
         result.total = playlist.videos.length;
@@ -87,7 +88,7 @@ export class MongoVideoService implements VideoService {
     };
     const sort = { publishedAt: -1 };
     const project = buildProject(fields, this.playlistVideoFields, map);
-    return findWithMap<PlaylistVideo>(this.videoCollection, query, this.id, map, sort, limit, skip, project).then((list) => {
+    return findWithMap<PlaylistVideo>(this.videoCollection, query, this.id, map, sort, limit, skip, project).then(list => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
@@ -119,7 +120,7 @@ export class MongoVideoService implements VideoService {
     };
     const sort = itemSM.sort ? { [getMapField(itemSM.sort, map)]: -1 } : undefined;
     const query = buildVideoQuery(itemSM);
-    return findWithMap<Item>(this.videoCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
+    return findWithMap<Item>(this.videoCollection, query, this.id, undefined, sort, limit, skip, project).then(list => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
@@ -134,7 +135,7 @@ export class MongoVideoService implements VideoService {
     };
     const sort = itemSM.sort ? { [getMapField(itemSM.sort, map)]: -1 } : undefined;
     const query = buildItemQuery(itemSM);
-    return findWithMap<any>(this.videoCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
+    return findWithMap<any>(this.videoCollection, query, this.id, undefined, sort, limit, skip, project).then(list => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
@@ -149,7 +150,7 @@ export class MongoVideoService implements VideoService {
     };
     const sort = playlistSM.sort ? { [getMapField(playlistSM.sort, map)]: -1 } : undefined;
     const query = buildPlaylistQuery(playlistSM);
-    return findWithMap<any>(this.playlistCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
+    return findWithMap<any>(this.playlistCollection, query, this.id, undefined, sort, limit, skip, project).then(list => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
@@ -165,7 +166,7 @@ export class MongoVideoService implements VideoService {
     };
     const sort = channelSM.sort ? { [getMapField(channelSM.sort, map)]: -1 } : undefined;
     const query = buildChannelQuery(channelSM);
-    return findWithMap<any>(this.channelCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
+    return findWithMap<any>(this.channelCollection, query, this.id, undefined, sort, limit, skip, project).then(list => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
@@ -183,7 +184,7 @@ export class MongoVideoService implements VideoService {
           _id: { $nin: [videoId] },
         };
         const sort = { publishedAt: -1 };
-        return findWithMap<Item>(this.videoCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
+        return findWithMap<Item>(this.videoCollection, query, this.id, undefined, sort, limit, skip, project).then(list => {
           return { list, nextPageToken: getNextPageToken(list, limit, skip) };
         });
       }
@@ -201,7 +202,7 @@ export class MongoVideoService implements VideoService {
     }
     const skip = getSkip(nextPageToken);
     const sort = { publishedAt: -1 };
-    return findWithMap<Video>(this.videoCollection, query, this.id, undefined, sort, limit, skip, project).then((list) => {
+    return findWithMap<Video>(this.videoCollection, query, this.id, undefined, sort, limit, skip, project).then(list => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
@@ -244,6 +245,7 @@ export function buildPlaylistQuery(s: PlaylistSM): FilterQuery<Playlist> {
   if (!isEmpty(s.relevanceLanguage)) {
     query.relevanceLanguage = s.relevanceLanguage;
   }
+  query.count = { $gt: 0 };
   return query;
 }
 export function buildChannelQuery(s: ChannelSM): FilterQuery<Channel> {

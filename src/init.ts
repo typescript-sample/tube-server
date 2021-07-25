@@ -5,7 +5,7 @@ import { ApplicationContext } from './context';
 import { SyncController } from './controllers/SyncController';
 import { TubeController } from './controllers/TubeController';
 import { log } from './controllers/util';
-import { MongoVideoService } from './services/mongo/MongoVideoService';
+import { MongoVideoService } from './services/MongoVideoService';
 import { MongoVideoRepository } from './sync/MongoSyncRepository';
 import { CategoryClient, DefaultSyncService, YoutubeSyncClient } from './video-plus';
 

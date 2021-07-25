@@ -30,25 +30,7 @@ export function calculateDuration(d: string): number {
   }
   return 0;
 }
-// date, rating, relevance, title, videoCount (for channels), viewCount (for live broadcast) => title, date => publishedAt, relevance => rank, count => videoCount
-export const youtubeSortMap: StringMap = {
-  publishedAt: 'date',
-  rank: 'rating',
-  count: 'videoCount'
-};
-export function getYoutubeSort(s: string): string {
-  if (!s || s.length === 0) {
-    return undefined;
-  }
-  const s2 = youtubeSortMap[s];
-  if (s2) {
-    return s2;
-  }
-  if (s === 'date' || s === 'rating' || s === 'title' || s === 'videoCount' || s === 'viewCount') { // s === 'relevance'
-    return s;
-  }
-  return undefined;
-}
+
 export function fromYoutubeCategories(res: YoutubeListResult<ListItem<string, CategorySnippet, any>>): VideoCategory[] {
   return res.items.filter(i => i.snippet).map(item => {
     const snippet = item.snippet;
@@ -141,41 +123,6 @@ export function fromYoutubePlaylist(res: YoutubeListResult<ListItem<string, Play
       i.highThumbnail = thumbnail.high ? thumbnail.high.url : undefined;
       i.standardThumbnail = thumbnail.standard ? thumbnail.standard.url : undefined;
       i.maxresThumbnail = thumbnail.maxres ? thumbnail.maxres.url : undefined;
-    }
-    return i;
-  });
-  return { list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken };
-}
-export function fromYoutubeSearch(res: YoutubeListResult<ListItem<SearchId, SearchSnippet, any>>): ListResult<Item> {
-  const list = res.items.filter(i => i.snippet).map(item => {
-    const snippet = item.snippet;
-    const thumbnail = snippet.thumbnails;
-    const i: Item = {
-      title: snippet.title ? snippet.title : '',
-      description: snippet.description ? snippet.description : '',
-      publishedAt: new Date(snippet.publishedAt),
-      channelId: snippet.channelId ? snippet.channelId : '',
-      channelTitle: snippet.channelTitle ? snippet.channelTitle : '',
-      liveBroadcastContent: snippet.liveBroadcastContent,
-      publishTime: new Date(snippet.publishTime),
-    };
-    if (thumbnail) {
-      i.thumbnail = thumbnail.default ? thumbnail.default.url : undefined;
-      i.mediumThumbnail = thumbnail.medium ? thumbnail.medium.url : undefined;
-      i.highThumbnail = thumbnail.high ? thumbnail.high.url : undefined;
-    }
-    const id = item.id;
-    if (id) {
-      if (id.videoId) {
-        i.id = id.videoId;
-        i.kind = 'video';
-      } else if (id.channelId) {
-        i.id = id.channelId;
-        i.kind = 'channel';
-      } else if (id.playlistId) {
-        i.id = id.playlistId;
-        i.kind = 'playlist';
-      }
     }
     return i;
   });

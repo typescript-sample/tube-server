@@ -1,5 +1,5 @@
 import { Collection, FilterQuery } from 'mongodb';
-import { findOne, findWithMap, upsert, upsertMany } from 'mongodb-extension';
+import { findAllWithMap, findOne, upsert, upsertMany } from 'mongodb-extension';
 import { Channel, ChannelSync, Playlist, PlaylistCollection, SyncRepository, Video } from '../video-plus';
 
 export class MongoVideoRepository implements SyncRepository {
@@ -28,19 +28,12 @@ export class MongoVideoRepository implements SyncRepository {
     return upsertMany(this.videoCollection, videos, this.id);
   }
   savePlaylistVideos(id: string, videos: string[]): Promise<number> {
-    const playlistVideo: PlaylistCollection = {
-      id,
-      videos,
-    };
+    const playlistVideo: PlaylistCollection = { id, videos };
     return upsert(this.playlistVideoCollection, playlistVideo, this.id);
   }
   getVideoIds(ids: string[]): Promise<string[]> {
     const query: FilterQuery<any> = { _id: { $in: ids } };
-    const project = {
-      _id: 1,
-    };
-    return findWithMap<any>(this.videoCollection, query, undefined, undefined, undefined, undefined, undefined, project).then((result) => {
-      return result.map((item) => item._id);
-    });
+    const project = { _id: 1 };
+    return findAllWithMap<any>(this.videoCollection, query, undefined, undefined, undefined, project).then(result => result.map(item => item._id));
   }
 }
