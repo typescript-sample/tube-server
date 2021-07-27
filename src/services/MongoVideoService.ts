@@ -195,7 +195,7 @@ export class MongoVideoService implements VideoService {
     limit = getLimit(limit);
     const query: FilterQuery<Video> = {};
     if (regionCode && regionCode.length > 0) {
-      query.regionCode = regionCode;
+      query.blockedRegions = {$ne: regionCode};
     }
     if (categoryId && categoryId.length > 0) {
       query.categoryId = categoryId;
