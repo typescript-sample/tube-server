@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import express, { Request, Response } from 'express';
 import http from 'http';
 import { connectToDb } from 'mongodb-extension';
+import { pool } from './sync/PostgreSyncRepository';
 import { createContext } from './init';
 import { route } from './route';
 
@@ -22,10 +23,21 @@ const port = process.env.PORT;
 const mongoURI = process.env.MONGO_URI;
 const mongoDB = process.env.MONGO_DB;
 const apiKey = process.env.API_KEY;
-connectToDb(`${mongoURI}`, `${mongoDB}`).then(db => {
-  const ctx = createContext(db, apiKey);
+// connectToDb(`${mongoURI}`, `${mongoDB}`).then(db => {
+//   const ctx = createContext(db, apiKey);
+//   route(app, ctx);
+//   http.createServer(app).listen(port, () => {
+//     console.log('Start server at port ' + port);
+//   });
+// });
+pool.connect().then( () => {
+  const ctx = createContext(undefined, apiKey);
   route(app, ctx);
   http.createServer(app).listen(port, () => {
     console.log('Start server at port ' + port);
   });
-});
+  console.log('Connected successfully to PostgreSQL.')
+})
+.catch(e => {
+  console.error('Failed to connect to PostgreSQL.', e.message, e.stack)
+})
