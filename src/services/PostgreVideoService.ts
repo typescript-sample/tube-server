@@ -127,8 +127,10 @@ export class PostgreTubeService implements VideoService {
       rating: 'publishedAt',
     };
     itemSM.sort = itemSM.sort ? getMapField(itemSM.sort, map) as any : undefined;
-    const query = buildVideoQuery(itemSM, fields);
-    return queryWithClient<Item>(this.client, query.query, query.args.concat([limit, skip]), videoMap).then(results => {
+    let query = buildVideoQuery(itemSM, fields);
+    query.query = query.query + ` limit ${limit} offset ${skip}`;
+    console.log(query.query);
+    return queryWithClient<Item>(this.client, query.query, query.args, videoMap).then(results => {
       return { list : results, nextPageToken: getNextPageToken(results, limit, skip) };
     })
     .catch(e => {
@@ -145,8 +147,10 @@ export class PostgreTubeService implements VideoService {
       rating: 'publishedAt',
     };
     playlistSM.sort = playlistSM.sort ? getMapField(playlistSM.sort, map) as any : undefined;
-    const query = buildPlaylistQuery(playlistSM, fields);
-    return queryWithClient<Playlist>(this.client, query.query, query.args.concat([limit, skip]), playlistMap).then(results => {
+    let query = buildPlaylistQuery(playlistSM, fields);
+    query.query = query.query + ` limit ${limit} offset ${skip}`;
+    console.log(query.query);
+    return queryWithClient<Playlist>(this.client, query.query, query.args, playlistMap).then(results => {
       return { list : results, nextPageToken: getNextPageToken(results, limit, skip) };
     });
   }
@@ -160,8 +164,10 @@ export class PostgreTubeService implements VideoService {
       viewCount: 'playlistVideoItemCount',
     };
     channelSM.sort = channelSM.sort ? getMapField(channelSM.sort, map) as any : undefined;
-    const query = buildChannelQuery(channelSM, fields);
-    return queryWithClient<Channel>(this.client, query.query, query.args.concat([limit, skip]), channelMap).then(results => {
+    let query = buildChannelQuery(channelSM, fields);
+    query.query = query.query + ` limit ${limit} offset ${skip}`;
+    console.log(query.query);
+    return queryWithClient<Channel>(this.client, query.query, query.args, channelMap).then(results => {
       return { list : results, nextPageToken: getNextPageToken(results, limit, skip) };
     });
   }
@@ -242,11 +248,23 @@ export function getSkip(nextPageToken: string): number {
   }
   return 0;
 }
-
 export function buildVideoQuery(s: ItemSM, fields?: string[]): Statement {
   let query = `select ${buildFields(fields, videoFields)} from video`;
   const condition = [];
   const args = [];
+  let i = 1;
+  if (s.publishedAfter) {
+    args.push(s.publishedAfter);
+    condition.push(`(publishedat <= $${i++})`);
+  } 
+  if (s.publishedBefore) {
+    args.push(s.publishedBefore);
+    condition.push(`(publishedat > $${i++})`);
+  }
+  if (!isEmpty(s.regionCode)) {
+    args.push(s.regionCode);
+    condition.push(`(blockedregions is null OR $${i++} != ALL(blockedregions))`);
+  }
   if (!isEmpty(s.duration)) {
     switch (s.duration) {
       case 'short':
@@ -262,22 +280,11 @@ export function buildVideoQuery(s: ItemSM, fields?: string[]): Statement {
         break;
     }
   }
-  if (s.publishedBefore && s.publishedAfter) {
-    args.push(s.publishedBefore, s.publishedAfter);
-    condition.push(`(publishedat > $${args.length - 1} and publishedat <= $${args.length})`);
-  } else if (s.publishedAfter) {
-    args.push(s.publishedAfter);
-    condition.push(`(publishedat <= $${args.length})`);
-  } else if (s.publishedBefore) {
-    args.push(s.publishedBefore);
-    condition.push(`(publishedat > $${args.length})`);
-  }
-  if (!isEmpty(s.regionCode)) {
-    args.push(s.regionCode);
-    condition.push(`(blockedregions is null OR $${args.length} != ALL(blockedregions))`);
-  }
   if (!isEmpty(s.q)) {
-    condition.push(`(title ilike '%${s.q}%' OR description ilike '%${s.q}%')`);
+    const q = `%${s.q}%`;
+    condition.push(`(title ilike $${i++} OR description ilike $${i++})`);
+    args.push(q);
+    args.push(q);
   }
   if (condition.length > 0) {
     const cond = condition.join(' and ');
@@ -286,7 +293,6 @@ export function buildVideoQuery(s: ItemSM, fields?: string[]): Statement {
   if (s.sort && s.sort.length > 0) {
     query += ` order by ${s.sort} desc`;
   }
-  query += ` limit $${args.length + 1} offset $${args.length + 2}`;
   return {
     query,
     args
@@ -296,20 +302,24 @@ export function buildPlaylistQuery(s: PlaylistSM, fields?: string[]): Statement 
   let query = `select ${buildFields(fields, playlistFields)} from playlist`;
   const condition = [];
   const args = [];
-  if (!isEmpty(s.q)) {
-    condition.push(`(title ilike '%${s.q}%' or description ilike '%${s.q}%')`);
-  }
+  let i = 1;
   if (s.publishedAfter) {
     args.push(s.publishedAfter);
-    condition.push(`(publishedat <= $${args.length})`);
-  }
+    condition.push(`(publishedat <= $${i++})`);
+  } 
   if (s.publishedBefore) {
     args.push(s.publishedBefore);
-    condition.push(`(publishedat > $${args.length})`);
+    condition.push(`(publishedat > $${i++})`);
+  }
+  if (!isEmpty(s.q)) {
+    const q = `%${s.q}%`;
+    condition.push(`(title ilike $${i++} OR description ilike $${i++})`);
+    args.push(q);
+    args.push(q);
   }
   if (!isEmpty(s.channelId)) {
     args.push(s.channelId);
-    condition.push(`(channelid = $${args.length})`);
+    condition.push(`(channelid = $${i++})`);
   }
   // if (!isEmpty(s.channelType)) {
   //   // query.channelType = s.channelType;
@@ -329,7 +339,6 @@ export function buildPlaylistQuery(s: PlaylistSM, fields?: string[]): Statement 
   if (s.sort && s.sort.length > 0) {
     query += ` order by ${s.sort} desc`;
   }
-  query += ` limit $${args.length + 1} offset $${args.length + 2}`;
   return {
     query,
     args
@@ -339,26 +348,30 @@ export function buildChannelQuery(s: ChannelSM, fields?: string[]): Statement {
   let query = `select ${buildFields(fields, channelFields)} from channel`;
   const condition = [];
   const args = [];
-  if (!isEmpty(s.q)) {
-    condition.push(`(title ilike '%${s.q}%' OR description ilike '%${s.q}%')`);
-  }
-  if (s.publishedBefore && s.publishedAfter) {
-    args.push(s.publishedBefore, s.publishedAfter);
-    condition.push(`(publishedat > $${args.length - 1} and publishedat <= $${args.length})`);
-  } else if (s.publishedAfter) {
+  let i = 1;
+  if (s.publishedAfter) {
     args.push(s.publishedAfter);
-    condition.push(`(publishedat <= $${args.length})`);
-  } else if (s.publishedBefore) {
+    condition.push(`(publishedat <= $${i++})`);
+  } 
+  if (s.publishedBefore) {
     args.push(s.publishedBefore);
-    condition.push(`(publishedat > $${args.length})`);
+    condition.push(`(publishedat > $${i++})`);
+  }
+  if (!isEmpty(s.q)) {
+    const q = `%${s.q}%`;
+    condition.push(`(title ilike $${i++} OR description ilike $${i++})`);
+    args.push(q);
+    args.push(q);
   }
   if (!isEmpty(s.channelId)) {
     args.push(s.channelId);
-    condition.push(`(id = $${args.length})`);
+    condition.push(`(id = $${i++})`);
   }
+  console.log('Done',s.regionCode);
   if (!isEmpty(s.regionCode)) {
     args.push(s.regionCode);
-    condition.push(`(country = $${args.length})`);
+    condition.push(`(country = $${i++})`);
+    
   }
   // if (!isEmpty(s.channelType)) {
   //   query.channelType = s.channelType;
@@ -376,7 +389,6 @@ export function buildChannelQuery(s: ChannelSM, fields?: string[]): Statement {
   if (s.sort && s.sort.length > 0) {
     query += ` order by ${s.sort} desc`;
   }
-  query += ` limit $${args.length + 1} offset $${args.length + 2}`;
   return {
     query,
     args

@@ -167,10 +167,11 @@ export class TubeController {
     const fields = queryParams(req, 'fields');
     const channelId = query(req, 'channelId');
     const sort = query(req, 'sort') as SortType;
+    const regionCode = query(req, 'regionCode', '');
     const q = query(req, 'q', '');
     const publishedBefore = queryDate(req, 'publishedBefore');
     const publishedAfter = queryDate(req, 'publishedAfter');
-    const channelSM: ChannelSM = { channelId, q, sort, publishedAfter, publishedBefore };
+    const channelSM: ChannelSM = { channelId, q, sort, publishedAfter, publishedBefore, regionCode };
     this.videoService
       .searchChannels(channelSM, limit, nextPageToken, fields)
       .then(results => res.status(200).json(results))
