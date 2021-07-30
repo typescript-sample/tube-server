@@ -2,11 +2,6 @@ import { Pool, PoolClient } from 'pg';
 import { buildFields, exec, getMapField, isEmpty, params, query, queryOne, Statement } from 'postgre';
 import { Channel, channelFields, channelMap, ChannelSM, Item, ItemSM, ListResult, Playlist, playlistFields, playlistMap, PlaylistSM, PlaylistVideo, StringMap, Video, VideoCategory, videoFields, videoMap, VideoService} from 'video-service';
 
-export function buildQueryUpsert(tableName: string, listFields: string[]): string {
-  const listValues = listFields.map((item, index) => `$${index + 1}`);
-  const queryUpdate = listFields.map((item, index) => `${item} = $${index + 1}`);
-  return `INSERT INTO ${tableName}(${listFields.join()})VALUES (${listValues.join()}) ON CONFLICT (id) DO UPDATE SET ${queryUpdate.slice(1, queryUpdate.length).join()}`;
-}
 export interface CategoryCollection {
   id: string;
   data: VideoCategory[];
@@ -58,7 +53,8 @@ export class PostgreTubeService implements VideoService {
   getChannelPlaylists(channelId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Playlist>> {
     const skip = getSkip(nextPageToken);
     limit = getLimit(limit);
-    const q = `select ${buildFields(fields, playlistFields)} from playlist where channelId=$1 order by publishedAt desc ${limit} offset ${skip}`;
+    const q = `select ${buildFields(fields, playlistFields)} from playlist where channelId=$1 order by publishedAt desc limit ${limit} offset ${skip}`;
+    console.log(q);
     return query<Playlist>(this.client, q, [channelId], playlistMap).then(results => {
       return {
         list : results,
@@ -72,7 +68,7 @@ export class PostgreTubeService implements VideoService {
     const queryFilter = `select videos from playlistvideo where id = $1`;
     return queryOne(this.client, queryFilter, [playlistId]).then(results => {
       const listVideoIds = results['videos'].map(video => `'${video}'`).toString();
-      const q = `select ${buildFields(fields, videoFields)} from video where id in (${listVideoIds}) order by publishedAt desc ${limit} offset ${skip}`;
+      const q = `select ${buildFields(fields, videoFields)} from video where id in (${listVideoIds}) order by publishedAt desc limit ${limit} offset ${skip}`;
       return query<Playlist>(this.client, q, [], videoMap).then(videos => {
         return {
           list: videos,
@@ -84,7 +80,7 @@ export class PostgreTubeService implements VideoService {
   getChannelVideos(channelId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>> {
     const skip = getSkip(nextPageToken);
     limit = getLimit(limit);
-    const q = `select ${buildFields(fields, videoFields)} from video where channelId=$1 order by publishedAt desc ${limit} offset ${skip}`;
+    const q = `select ${buildFields(fields, videoFields)} from video where channelId=$1 order by publishedAt desc limit ${limit} offset ${skip}`;
     return query<PlaylistVideo>(this.client, q, [channelId], videoMap).then(results => {
       return {
         list : results,
@@ -106,7 +102,7 @@ export class PostgreTubeService implements VideoService {
           };
           const fields = Object.keys(newCategoryCollection);
           const values = Object.values(newCategoryCollection);
-          const querySaveCategory = buildQueryUpsert('category', fields);
+          const querySaveCategory = `INSERT INTO category(${fields.join()}) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2`;
           await exec(this.client, querySaveCategory, values);
           return categoryToSave;
         });
@@ -189,7 +185,7 @@ export class PostgreTubeService implements VideoService {
         const r: ListResult<Item> = { list: [] };
         return Promise.resolve(r);
       } else {
-        const sql = `select ${buildFields(fields, videoFields)} from video where id not in ($1) and $2 && tags ${limit} offset ${skip}`;
+        const sql = `select ${buildFields(fields, videoFields)} from video where id not in ($1) and $2 && tags limit ${limit} offset ${skip}`;
         return query<Item>(this.client, sql, [videoId, video.tags], videoMap).then(list => {
           return { list, nextPageToken: getNextPageToken(list, limit, skip) };
         });
@@ -199,7 +195,7 @@ export class PostgreTubeService implements VideoService {
   getPopularVideos(regionCode: string, videoCategoryId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
     limit = getLimit(limit);
     const skip = getSkip(nextPageToken);
-    const sql = `select ${buildFields(fields, videoFields)} from video order by publishedat desc ${limit} offset ${skip}`;
+    const sql = `select ${buildFields(fields, videoFields)} from video order by publishedat desc limit ${limit} offset ${skip}`;
     return query<Video>(this.client, sql, [], videoMap ).then(list => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
@@ -207,7 +203,7 @@ export class PostgreTubeService implements VideoService {
   getPopularVideosByCategory(categoryId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
     limit = getLimit(limit);
     const skip = getSkip(nextPageToken);
-    const sql = `select ${buildFields(fields, videoFields)} from video where categoryId = $1 order by publishedAt desc ${limit} offset ${skip}`;
+    const sql = `select ${buildFields(fields, videoFields)} from video where categoryId = $1 order by publishedAt desc limit ${limit} offset ${skip}`;
     return query<Video>(this.client, sql, [categoryId], videoMap ).then(list => {
       return {
         list,
@@ -218,7 +214,7 @@ export class PostgreTubeService implements VideoService {
   getPopularVideosByRegion(regionCode: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
     limit = getLimit(limit);
     const skip = getSkip(nextPageToken);
-    const sql = `select ${buildFields(fields, videoFields)} from where video (blockedRegions is null or $1 != all(blockedRegions)) order by publishedAt desc ${limit} offset ${skip}`;
+    const sql = `select ${buildFields(fields, videoFields)} from where video (blockedRegions is null or $1 != all(blockedRegions)) order by publishedAt desc limit ${limit} offset ${skip}`;
     return query<Video>(this.client, sql, [regionCode], videoMap ).then(list => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip)};
     });

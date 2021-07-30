@@ -159,11 +159,6 @@ export const videoModel: Model = {
   }
 };
 
-export function buildQueryUpsert(tableName: string, listFields: string[]): string {
-  const listValues = listFields.map((item, index) => `$${index + 1}`);
-  const queryUpdate = listFields.map((item, index) => `${item} = $${index + 1}`);
-  return `INSERT INTO ${tableName}(${listFields.join()})VALUES (${listValues.join()}) ON CONFLICT (id) DO UPDATE SET ${queryUpdate.slice(1, queryUpdate.length).join()}`;
-}
 export class PostgreVideoRepository implements SyncRepository {
   protected client: PoolClient;
   constructor(pool: Pool) {
