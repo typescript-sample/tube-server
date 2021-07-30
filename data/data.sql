@@ -1,101 +1,99 @@
-CREATE TABLE category
+create table category
 (
-  id character varying(100) NOT NULL,
+  id character varying(100) not null,
   data json[],
-  PRIMARY KEY (id)
+  primary key (id)
 );
 
-CREATE TABLE channel
+create table channel
 (
-  id character varying(100) NOT NULL,
+  id character varying(100) not null,
   country character varying(25),
   customurl character varying(250),
+  publishedat timestamp with time zone,
+  title character varying(255),
   description character varying,
-  favorites character varying,
-  highthumbnail character varying,
-  likes character varying,
+  localizedtitle character varying(255),
   localizeddescription character varying,
-  localizedtitle character varying(100),
-  mediumthumbnail character varying,
-  publishedat date,
-  thumbnail character varying,
-  title character varying(250),
+  thumbnail character varying(255),
+  mediumthumbnail character varying(255),
+  highthumbnail character varying(255),
   uploads character varying(100),
-  count character varying,
-  itemcount character varying,
+  favorites character varying,
+  likes character varying,
+  lastupload timestamp with time zone,
+  count integer,
+  itemcount integer,
   playlistcount integer,
   playlistitemcount integer,
   playlistvideocount integer,
   playlistvideoitemcount integer,
-  lastupload timestamp without time zone,
-  PRIMARY KEY (id)
+  primary key (id)
 );
 
-CREATE TABLE channel_sync
+create table channelsync
 (
-  id character varying(100) NOT NULL,
-  synctime timestamp without time zone,
+  id character varying(100) not null,
+  synctime timestamp with time zone,
   uploads character varying(100),
-  PRIMARY KEY (id)
+  primary key (id)
 );
 
-CREATE TABLE playlist
+create table playlist
 (
-  id character varying(100) NOT NULL,
+  id character varying(100) not null,
   channelid character varying(100),
-  channeltitle character varying(250),
+  channeltitle character varying(255),
+  publishedat timestamp with time zone,
+  title character varying(255),
   description character varying,
-  highthumbnail character varying,
-  count integer,
+  localizedtitle character varying(255),
   localizeddescription character varying,
-  localizedtitle character varying,
-  maxresthumbnail character varying,
-  mediumthumbnail character varying,
-  publishedat date,
-  standardthumbnail character varying,
-  thumbnail character varying,
-  title character varying(200),
-  itemcount double precision,
-  PRIMARY KEY (id)
+  thumbnail character varying(255),
+  mediumthumbnail character varying(255),
+  highthumbnail character varying(255),
+  standardthumbnail character varying(255),
+  maxresthumbnail character varying(255),
+  count integer,
+  itemcount integer,
+  primary key (id)
 );
 
-CREATE TABLE playlist_video
+create table playlistvideo
 (
-  id character varying(100) NOT NULL,
+  id character varying(100) not null,
   videos character varying[],
-  PRIMARY KEY (id)
+  primary key (id)
 );
 
-CREATE TABLE video
+create table video
 (
-  id character varying(100) NOT NULL,
-  caption character varying(255),
+  id character varying(100) not null,
   categoryid character varying(20),
   channelid character varying(100),
   channeltitle character varying(255),
-  defaultaudiolanguage character varying(255),
-  defaultlanguage character varying(255),
-  description character varying,
-  dimension character varying(20),
-  highthumbnail character varying(255),
-  licensedcontent boolean,
-  livebroadcastcontent character varying(255),
-  localizeddescription character varying,
-  localizedtitle character varying(255),
-  maxresthumbnail character varying(255),
-  mediumthumbnail character varying(255),
-  projection character varying(255),
-  publishedat timestamp without time zone,
-  standardthumbnail character varying(255),
-  tags character varying[],
-  thumbnail character varying(255),
+  publishedat timestamp with time zone,
   title character varying(255),
+  description character varying,
+  localizedtitle character varying(255),
+  localizeddescription character varying,
+  thumbnail character varying(255),
+  mediumthumbnail character varying(255),
+  highthumbnail character varying(255),
+  standardthumbnail character varying(255),
+  maxresthumbnail character varying(255),
+  tags character varying[],
+  rank smallint,
+  caption character varying(255),
+  duration bigint,
+  definition smallint,
+  dimension character varying(20),
+  projection character varying(255),
+  defaultlanguage character varying(255),
+  defaultaudiolanguage character varying(255),
   allowedregions character varying(100)[],
   blockedregions character varying(100)[],
-  definition double precision,
-  duration double precision,
-  PRIMARY KEY (id)
+  licensedcontent boolean,
+  livebroadcastcontent character varying(255),
+  primary key (id)
 )
-
-
-

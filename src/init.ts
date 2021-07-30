@@ -29,11 +29,11 @@ export function createContext(key?: string, db?: Db): ApplicationContext {
     tubeService = new MongoVideoService(categoryCollection, channelCollection, playlistCollection, playlistVideoCollection, videoCollection, categoryClient.getCagetories);
   } else {
     const pool = new Pool ({
-      user: 'postgres',
       host: 'localhost',
+      port: 5432,
+      user: 'postgres',
       password: '123',
-      database: 'youtube',
-      port: 5432
+      database: 'test'
     });
     videoRepository = new PostgreVideoRepository(pool);
     tubeService = new PostgreTubeService(pool, categoryClient.getCagetories);

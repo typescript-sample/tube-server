@@ -1,6 +1,163 @@
 import { Pool, PoolClient } from 'pg';
-import { executeWithClient, execWithClient, queryOneWithClient, queryWithClient } from 'postgre';
+import { exec, Model, query, queryOne, save, saveBatchWithClient } from 'postgre';
 import { Channel, ChannelSync, Playlist, PlaylistCollection, SyncRepository, Video } from 'video-service';
+
+export const channelModel: Model = {
+  name: 'channel',
+  attributes: {
+    id: {
+      key: true,
+      match: 'equal'
+    },
+    country: {},
+    customUrl: {},
+    publishedAt: {
+      type: 'datetime'
+    },
+    title: {},
+    description: {},
+    localizedTitle: {},
+    localizedDescription: {},
+    thumbnail: {},
+    mediumThumbnail: {},
+    highThumbnail: {},
+    uploads: {},
+    favorites: {},
+    likes: {},
+    lastUpload: {
+      type: 'datetime'
+    },
+    count: {
+      type: 'integer'
+    },
+    itemCount: {
+      type: 'integer'
+    },
+    playlistCount: {
+      type: 'integer'
+    },
+    playlistItemCount: {
+      type: 'integer'
+    },
+    playlistVideoCount: {
+      type: 'integer'
+    },
+    playlistVideoItemCount: {
+      type: 'integer'
+    }
+  }
+};
+export const channelSyncModel: Model = {
+  name: 'channelSync',
+  attributes: {
+    id: {
+      key: true,
+      match: 'equal'
+    },
+    syncTime: {
+      type: 'datetime'
+    },
+    uploads: {}
+  }
+};
+export const playlistModel: Model = {
+  name: 'playlist',
+  attributes: {
+    id: {
+      key: true,
+      match: 'equal'
+    },
+    channelId: {
+      match: 'equal'
+    },
+    channelTitle: {},
+    publishedAt: {
+      type: 'datetime'
+    },
+    title: {},
+    description: {},
+    localizedTitle: {},
+    localizedDescription: {},
+    thumbnail: {},
+    mediumThumbnail: {},
+    highThumbnail: {},
+    standardThumbnail: {},
+    maxresThumbnail: {},
+    count: {
+      type: 'integer'
+    },
+    itemCount: {
+      type: 'integer'
+    }
+  }
+};
+export const playlistVideoModel: Model = {
+  name: 'video',
+  attributes: {
+    id: {
+      key: true,
+      match: 'equal'
+    },
+    videos: {
+      type: 'primitives'
+    }
+  }
+};
+export const videoModel: Model = {
+  name: 'video',
+  attributes: {
+    id: {
+      key: true,
+      match: 'equal'
+    },
+    categoryId: {
+      match: 'equal'
+    },
+    channelId: {
+      match: 'equal'
+    },
+    channelTitle: {},
+    publishedAt: {
+      type: 'datetime'
+    },
+    title: {},
+    description: {},
+    localizedTitle: {},
+    localizedDescription: {},
+    thumbnail: {},
+    mediumThumbnail: {},
+    highThumbnail: {},
+    standardThumbnail: {},
+    maxresThumbnail: {},
+    tags: {
+      type: 'primitives'
+    },
+    rank: {
+      type: 'integer'
+    },
+    caption: {},
+    duration: {
+      type: 'integer'
+    },
+    definition: {
+      type: 'integer'
+    },
+    dimension: {},
+    projection: {},
+    defaultLanguage: {},
+    defaultAudioLanguage: {},
+    allowedRegions: {
+      type: 'primitives'
+    },
+    blockedRegions: {
+      type: 'primitives'
+    },
+    licensedContent: {
+      type: 'boolean'
+    },
+    livebroadcastcontent: {}
+  }
+};
 
 export function buildQueryUpsert(tableName: string, listFields: string[]): string {
   const listValues = listFields.map((item, index) => `$${index + 1}`);
@@ -40,59 +197,31 @@ export class PostgreVideoRepository implements SyncRepository {
   }
 }
 export function getChannelSync(client: PoolClient, channelId: string): Promise<ChannelSync> {
-  return queryOneWithClient<ChannelSync>(client, 'SELECT * FROM channel_sync WHERE id = $1', [channelId]);
+  return queryOne<ChannelSync>(client, 'select * from channelSync where id = $1', [channelId]);
 }
 export function saveChannelSync(client: PoolClient, channelSync: ChannelSync): Promise<number> {
-  const fields = Object.keys(channelSync);
-  const values = Object.values(channelSync);
-  const queryChannelSync = buildQueryUpsert('channel_sync', fields);
-  return execWithClient(client, queryChannelSync, values);
+  return save(client, channelSync, 'channelSync', channelSyncModel.attributes);
 }
 export function saveChannel(client: PoolClient, channel: Channel): Promise<number> {
-  const fields = Object.keys(channel);
-  const values = Object.values(channel);
-  const queryChannel = buildQueryUpsert('channel', fields);
-  return execWithClient(client, queryChannel, values);
+  return save(client, channel, 'channel', channelModel.attributes);
 }
 export function savePlaylist(client: PoolClient, playlist: Playlist): Promise<number> {
-  const fields = Object.keys(playlist);
-  const values = Object.values(playlist);
-  const queryPlaylist = buildQueryUpsert('playlist', fields);
-  return execWithClient(client, queryPlaylist, values);
+  return save(client, playlist, 'playlist', playlistModel.attributes);
 }
 export function savePlaylists(client: PoolClient, playlists: Playlist[]): Promise<number> {
-  const statements = playlists.map((playlist, index) => {
-    const fields = Object.keys(playlists[index]);
-    const queryPlaylist = buildQueryUpsert('playlist', fields);
-    return {
-      query : queryPlaylist,
-      args: Object.values(playlist)
-      };
-    }) ;
-    return executeWithClient(client, statements);
+  return saveBatchWithClient(client, playlists, 'playlist', playlistModel.attributes);
 }
 export function saveVideos(client: PoolClient, videos: Video[]): Promise<number> {
-  const statements = videos.map((video, index ) => {
-    const fields = Object.keys(videos[index]);
-    const queryVideo = buildQueryUpsert('video', fields);
-    return {
-      query: queryVideo,
-      args: Object.values(video)
-    };
-  });
-  return executeWithClient(client, statements);
+  return saveBatchWithClient(client, videos, 'video', videoModel.attributes);
 }
 export function savePlaylistVideos(client: PoolClient, id: string, videos: string[]): Promise<number> {
-  const playlistVideo: PlaylistCollection = {
-    id,
-    videos,
-  };
-  const fields = Object.keys(playlistVideo);
-  const values = Object.values(playlistVideo);
-  const queryPlaylistVideo = buildQueryUpsert('playlist_video', fields);
-  return execWithClient(client, queryPlaylistVideo, values);
+  const playlistVideo: PlaylistCollection = { id, videos};
+  return save(client, playlistVideo, 'playlistVideo', playlistVideoModel.attributes);
 }
 export function getVideoIds(client: PoolClient, ids: string[]): Promise<string[]> {
   const stringIds = ids.map(id => '\'' + id + '\'').join();
-  return queryWithClient<string>(client, `SELECT * FROM video WHERE id IN (${stringIds})`);
+  const s = `select id from video where id in (${stringIds})`;
+  return query<Video>(client, s).then(r => {
+    return r.map(i => i.id);
+  });
 }
