@@ -1,5 +1,5 @@
 import { Collection, FilterQuery } from 'mongodb';
-import { buildProject, findAllWithMap, findOne, findWithMap, isEmpty, StringMap, upsert } from 'mongodb-extension';
+import { buildProject, findAllWithMap, findOne, findWithMap, getMapField, isEmpty, StringMap, upsert } from 'mongodb-extension';
 import { CategoryCollection, Channel, ChannelSM, getLimit, Item, ItemSM, ListResult, Playlist, PlaylistCollection, PlaylistSM, PlaylistVideo, Video, VideoCategory, VideoService } from 'video-service';
 
 export class MongoVideoService implements VideoService {
@@ -339,20 +339,6 @@ export function buildVideoQuery(s: ItemSM): FilterQuery<Item> {
     ];
   }
   return query;
-}
-
-export function getMapField(name: string, map?: StringMap): string {
-  if (!map) {
-    return name;
-  }
-  const x = map[name];
-  if (!x) {
-    return name;
-  }
-  if (typeof x === 'string') {
-    return x;
-  }
-  return name;
 }
 
 export function getNextPageToken<T>(list: T[], limit: number, skip: number, name?: string): string {

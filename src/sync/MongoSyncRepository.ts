@@ -32,8 +32,12 @@ export class MongoVideoRepository implements SyncRepository {
     return upsert(this.playlistVideoCollection, playlistVideo, this.id);
   }
   getVideoIds(ids: string[]): Promise<string[]> {
-    const query: FilterQuery<any> = { _id: { $in: ids } };
-    const project = { _id: 1 };
-    return findAllWithMap<any>(this.videoCollection, query, undefined, undefined, undefined, project).then(result => result.map(item => item._id));
+    if (!ids || ids.length === 0) {
+      return Promise.resolve([]);
+    } else {
+      const query: FilterQuery<any> = { _id: { $in: ids } };
+      const project = { _id: 1 };
+      return findAllWithMap<any>(this.videoCollection, query, undefined, undefined, undefined, project).then(result => result.map(item => item._id));
+    }
   }
 }

@@ -28,6 +28,7 @@ create table channel
   playlistitemcount integer,
   playlistvideocount integer,
   playlistvideoitemcount integer,
+  channel character varying[],
   primary key (id)
 );
 

@@ -1,163 +1,6 @@
 import { Pool, PoolClient } from 'pg';
-import { exec, Model, query, queryOne, save, saveBatchWithClient } from 'postgre';
-import { Channel, ChannelSync, Playlist, PlaylistCollection, SyncRepository, Video } from 'video-service';
-
-export const channelModel: Model = {
-  name: 'channel',
-  attributes: {
-    id: {
-      key: true,
-      match: 'equal'
-    },
-    country: {},
-    customUrl: {},
-    publishedAt: {
-      type: 'datetime'
-    },
-    title: {},
-    description: {},
-    localizedTitle: {},
-    localizedDescription: {},
-    thumbnail: {},
-    mediumThumbnail: {},
-    highThumbnail: {},
-    uploads: {},
-    favorites: {},
-    likes: {},
-    lastUpload: {
-      type: 'datetime'
-    },
-    count: {
-      type: 'integer'
-    },
-    itemCount: {
-      type: 'integer'
-    },
-    playlistCount: {
-      type: 'integer'
-    },
-    playlistItemCount: {
-      type: 'integer'
-    },
-    playlistVideoCount: {
-      type: 'integer'
-    },
-    playlistVideoItemCount: {
-      type: 'integer'
-    }
-  }
-};
-export const channelSyncModel: Model = {
-  name: 'channelSync',
-  attributes: {
-    id: {
-      key: true,
-      match: 'equal'
-    },
-    syncTime: {
-      type: 'datetime'
-    },
-    uploads: {}
-  }
-};
-export const playlistModel: Model = {
-  name: 'playlist',
-  attributes: {
-    id: {
-      key: true,
-      match: 'equal'
-    },
-    channelId: {
-      match: 'equal'
-    },
-    channelTitle: {},
-    publishedAt: {
-      type: 'datetime'
-    },
-    title: {},
-    description: {},
-    localizedTitle: {},
-    localizedDescription: {},
-    thumbnail: {},
-    mediumThumbnail: {},
-    highThumbnail: {},
-    standardThumbnail: {},
-    maxresThumbnail: {},
-    count: {
-      type: 'integer'
-    },
-    itemCount: {
-      type: 'integer'
-    }
-  }
-};
-export const playlistVideoModel: Model = {
-  name: 'video',
-  attributes: {
-    id: {
-      key: true,
-      match: 'equal'
-    },
-    videos: {
-      type: 'primitives'
-    }
-  }
-};
-export const videoModel: Model = {
-  name: 'video',
-  attributes: {
-    id: {
-      key: true,
-      match: 'equal'
-    },
-    categoryId: {
-      match: 'equal'
-    },
-    channelId: {
-      match: 'equal'
-    },
-    channelTitle: {},
-    publishedAt: {
-      type: 'datetime'
-    },
-    title: {},
-    description: {},
-    localizedTitle: {},
-    localizedDescription: {},
-    thumbnail: {},
-    mediumThumbnail: {},
-    highThumbnail: {},
-    standardThumbnail: {},
-    maxresThumbnail: {},
-    tags: {
-      type: 'primitives'
-    },
-    rank: {
-      type: 'integer'
-    },
-    caption: {},
-    duration: {
-      type: 'integer'
-    },
-    definition: {
-      type: 'integer'
-    },
-    dimension: {},
-    projection: {},
-    defaultLanguage: {},
-    defaultAudioLanguage: {},
-    allowedRegions: {
-      type: 'primitives'
-    },
-    blockedRegions: {
-      type: 'primitives'
-    },
-    licensedContent: {
-      type: 'boolean'
-    },
-    livebroadcastcontent: {}
-  }
-};
+import { params, query, queryOne, save, saveBatchWithClient } from 'postgre';
+import { Channel, channelModel, ChannelSync, channelSyncModel, Playlist, PlaylistCollection, playlistModel, playlistVideoModel, SyncRepository, Video, videoModel } from 'video-service';
 
 export class PostgreVideoRepository implements SyncRepository {
   protected client: PoolClient;
@@ -214,9 +57,13 @@ export function savePlaylistVideos(client: PoolClient, id: string, videos: strin
   return save(client, playlistVideo, 'playlistVideo', playlistVideoModel.attributes);
 }
 export function getVideoIds(client: PoolClient, ids: string[]): Promise<string[]> {
-  const stringIds = ids.map(id => '\'' + id + '\'').join();
-  const s = `select id from video where id in (${stringIds})`;
-  return query<Video>(client, s).then(r => {
-    return r.map(i => i.id);
-  });
+  if (!ids || ids.length === 0) {
+    return Promise.resolve([]);
+  } else {
+    const ps = params(ids.length);
+    const s = `select id from video where id in (${ps.join(',')})`;
+    return query<Video>(client, s, ps).then(r => {
+      return r.map(i => i.id);
+    });
+  }
 }

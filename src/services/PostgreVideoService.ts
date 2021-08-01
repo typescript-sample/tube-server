@@ -1,6 +1,6 @@
 import { Pool, PoolClient } from 'pg';
-import { buildFields, exec, getMapField, isEmpty, params, query, queryOne, Statement } from 'postgre';
-import { Channel, channelFields, channelMap, ChannelSM, Item, ItemSM, ListResult, Playlist, playlistFields, playlistMap, PlaylistSM, PlaylistVideo, StringMap, Video, VideoCategory, videoFields, videoMap, VideoService} from 'video-service';
+import { buildFields, exec, getMapField, isEmpty, metadata, params, query, queryOne, Statement } from 'postgre';
+import { Channel, channelModel, ChannelSM, Item, ItemSM, ListResult, Playlist, playlistModel, PlaylistSM, PlaylistVideo, StringMap, Video, VideoCategory, videoModel, VideoService } from 'video-service';
 
 export interface CategoryCollection {
   id: string;
@@ -8,54 +8,69 @@ export interface CategoryCollection {
 }
 export class PostgreTubeService implements VideoService {
   protected client: PoolClient;
+  channelFields: string[];
+  channelMap: StringMap;
+  playlistFields: string[];
+  playlistMap: StringMap;
+  videoFields: string[];
+  videoMap: StringMap;
   constructor(pool: Pool, private clientCagetories: (regionCode?: string) => Promise<VideoCategory[]>) {
     pool.connect().then(client => this.client = client);
+    const channelMeta = metadata(channelModel.attributes);
+    this.channelFields = channelMeta.fields;
+    this.channelMap = channelMeta.map;
+    const playlistMeta = metadata(playlistModel.attributes);
+    this.playlistFields = playlistMeta.fields;
+    this.playlistMap = playlistMeta.map;
+    const videoMeta = metadata(videoModel.attributes);
+    this.videoFields = videoMeta.fields;
+    this.videoMap = videoMeta.map;
   }
   getChannel(id: string, fields?: string[]): Promise<Channel> {
     if (!id || id.length === 0) {
       return Promise.resolve(null);
     }
-    const q = `select ${buildFields(fields, channelFields)} from channel where id = $1`;
-    return queryOne<Channel>(this.client, q, [id], channelMap);
+    const q = `select ${buildFields(fields, this.channelFields)} from channel where id = $1`;
+    return queryOne<Channel>(this.client, q, [id], this.channelMap);
   }
   getChannels(ids: string[], fields?: string[]): Promise<Channel[]> {
     if (!ids || ids.length === 0) {
       return Promise.resolve([]);
     }
     const ps = params(ids.length);
-    const q = `select ${buildFields(fields, channelFields)} from channel where id in (${ps.join(',')})`;
-    return query<Channel>(this.client, q, ids, channelMap);
+    const q = `select ${buildFields(fields, this.channelFields)} from channel where id in (${ps.join(',')})`;
+    return query<Channel>(this.client, q, ids, this.channelMap);
   }
   getPlaylist(id: string, fields?: string[]): Promise<Playlist> {
     if (!id || id.length === 0) {
       return Promise.resolve(null);
     }
-    const q = `select ${buildFields(fields, playlistFields)} from playlist where id = $1`;
-    return queryOne<Playlist>(this.client, q, [id], playlistMap);
+    const q = `select ${buildFields(fields, this.playlistFields)} from playlist where id = $1`;
+    return queryOne<Playlist>(this.client, q, [id], this.playlistMap);
   }
   getPlaylists(ids: string[], fields?: string[]): Promise<Playlist[]> {
     if (!ids || ids.length === 0) {
       return Promise.resolve([]);
     }
     const ps = params(ids.length);
-    const q = `select ${buildFields(fields, playlistFields)} from playlist where id in (${ps.join(',')})`;
-    return query<Playlist>(this.client, q, ids, playlistMap);
+    const q = `select ${buildFields(fields, this.playlistFields)} from playlist where id in (${ps.join(',')})`;
+    return query<Playlist>(this.client, q, ids, this.playlistMap);
   }
   getVideo(videoId: string, fields?: string[]): Promise<Video> {
-    const q = `select ${buildFields(fields, videoFields)} from video where id = $1`;
-    return queryOne<Video>(this.client, q, [videoId], videoMap);
+    const q = `select ${buildFields(fields, this.videoFields)} from video where id = $1`;
+    return queryOne<Video>(this.client, q, [videoId], this.videoMap);
   }
   getVideos(videoIds: string[], fields?: string[]): Promise<Video[]> {
     const strVideoIds = videoIds.map(id => `'${id}'`).join();
-    const q = `select ${buildFields(fields, videoFields)} from video where id in (${strVideoIds})`;
-    return query<Video>(this.client, q, undefined, videoMap);
+    const q = `select ${buildFields(fields, this.videoFields)} from video where id in (${strVideoIds})`;
+    return query<Video>(this.client, q, undefined, this.videoMap);
   }
   getChannelPlaylists(channelId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Playlist>> {
     const skip = getSkip(nextPageToken);
     limit = getLimit(limit);
-    const q = `select ${buildFields(fields, playlistFields)} from playlist where channelId=$1 order by publishedAt desc limit ${limit} offset ${skip}`;
+    const q = `select ${buildFields(fields, this.playlistFields)} from playlist where channelId=$1 order by publishedAt desc limit ${limit} offset ${skip}`;
     console.log(q);
-    return query<Playlist>(this.client, q, [channelId], playlistMap).then(results => {
+    return query<Playlist>(this.client, q, [channelId], this.playlistMap).then(results => {
       return {
         list : results,
         nextPageToken: getNextPageToken(results, limit, skip),
@@ -68,8 +83,8 @@ export class PostgreTubeService implements VideoService {
     const queryFilter = `select videos from playlistvideo where id = $1`;
     return queryOne(this.client, queryFilter, [playlistId]).then(results => {
       const listVideoIds = results['videos'].map(video => `'${video}'`).toString();
-      const q = `select ${buildFields(fields, videoFields)} from video where id in (${listVideoIds}) order by publishedAt desc limit ${limit} offset ${skip}`;
-      return query<Playlist>(this.client, q, [], videoMap).then(videos => {
+      const q = `select ${buildFields(fields, this.videoFields)} from video where id in (${listVideoIds}) order by publishedAt desc limit ${limit} offset ${skip}`;
+      return query<Playlist>(this.client, q, [], this.videoMap).then(videos => {
         return {
           list: videos,
           nextPageToken: getNextPageToken(videos, limit, skip),
@@ -80,8 +95,8 @@ export class PostgreTubeService implements VideoService {
   getChannelVideos(channelId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>> {
     const skip = getSkip(nextPageToken);
     limit = getLimit(limit);
-    const q = `select ${buildFields(fields, videoFields)} from video where channelId=$1 order by publishedAt desc limit ${limit} offset ${skip}`;
-    return query<PlaylistVideo>(this.client, q, [channelId], videoMap).then(results => {
+    const q = `select ${buildFields(fields, this.videoFields)} from video where channelId=$1 order by publishedAt desc limit ${limit} offset ${skip}`;
+    return query<PlaylistVideo>(this.client, q, [channelId], this.videoMap).then(results => {
       return {
         list : results,
         nextPageToken: getNextPageToken(results, limit, skip),
@@ -102,7 +117,7 @@ export class PostgreTubeService implements VideoService {
           };
           const fields = Object.keys(newCategoryCollection);
           const values = Object.values(newCategoryCollection);
-          const querySaveCategory = `INSERT INTO category(${fields.join()}) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2`;
+          const querySaveCategory = `insert into category(${fields.join()}) values ($1, $2) on conflict (id) do update set data = $2`;
           await exec(this.client, querySaveCategory, values);
           return categoryToSave;
         });
@@ -119,7 +134,7 @@ export class PostgreTubeService implements VideoService {
     };
     itemSM.sort = itemSM.sort ? getMapField(itemSM.sort, map) as any : undefined;
     const q = buildVideoQuery(itemSM, fields);
-    return query<Item>(this.client, q.query, q.args.concat([limit, skip]), videoMap).then(results => {
+    return query<Item>(this.client, q.query, q.args.concat([limit, skip]), this.videoMap).then(results => {
       return { list : results, nextPageToken: getNextPageToken(results, limit, skip)};
     }).catch(e => {
       console.log(e);
@@ -137,7 +152,7 @@ export class PostgreTubeService implements VideoService {
     itemSM.sort = itemSM.sort ? getMapField(itemSM.sort, map) as any : undefined;
     const sql = buildVideoQuery(itemSM, fields);
     sql.query = sql.query + ` limit ${limit} offset ${skip}`;
-    return query<Item>(this.client, sql.query, sql.args, videoMap).then(results => {
+    return query<Item>(this.client, sql.query, sql.args, this.videoMap).then(results => {
       return { list : results, nextPageToken: getNextPageToken(results, limit, skip) };
     })
     .catch(e => {
@@ -157,7 +172,7 @@ export class PostgreTubeService implements VideoService {
     const sql = buildPlaylistQuery(playlistSM, fields);
     sql.query = sql.query + ` limit ${limit} offset ${skip}`;
     console.log(sql.query);
-    return query<Playlist>(this.client, sql.query, sql.args, playlistMap).then(results => {
+    return query<Playlist>(this.client, sql.query, sql.args, this.playlistMap).then(results => {
       return { list : results, nextPageToken: getNextPageToken(results, limit, skip) };
     });
   }
@@ -173,7 +188,7 @@ export class PostgreTubeService implements VideoService {
     channelSM.sort = channelSM.sort ? getMapField(channelSM.sort, map) as any : undefined;
     const sql = buildChannelQuery(channelSM, fields);
     sql.query = sql.query + ` limit ${limit} offset ${skip}`;
-    return query<Channel>(this.client, sql.query, sql.args, channelMap).then(results => {
+    return query<Channel>(this.client, sql.query, sql.args, this.channelMap).then(results => {
       return { list : results, nextPageToken: getNextPageToken(results, limit, skip) };
     });
   }
@@ -185,8 +200,8 @@ export class PostgreTubeService implements VideoService {
         const r: ListResult<Item> = { list: [] };
         return Promise.resolve(r);
       } else {
-        const sql = `select ${buildFields(fields, videoFields)} from video where id not in ($1) and $2 && tags limit ${limit} offset ${skip}`;
-        return query<Item>(this.client, sql, [videoId, video.tags], videoMap).then(list => {
+        const sql = `select ${buildFields(fields, this.videoFields)} from video where id not in ($1) and $2 && tags limit ${limit} offset ${skip}`;
+        return query<Item>(this.client, sql, [videoId, video.tags], this.videoMap).then(list => {
           return { list, nextPageToken: getNextPageToken(list, limit, skip) };
         });
       }
@@ -195,16 +210,16 @@ export class PostgreTubeService implements VideoService {
   getPopularVideos(regionCode: string, videoCategoryId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
     limit = getLimit(limit);
     const skip = getSkip(nextPageToken);
-    const sql = `select ${buildFields(fields, videoFields)} from video order by publishedat desc limit ${limit} offset ${skip}`;
-    return query<Video>(this.client, sql, [], videoMap ).then(list => {
+    const sql = `select ${buildFields(fields, this.videoFields)} from video order by publishedAt desc limit ${limit} offset ${skip}`;
+    return query<Video>(this.client, sql, [], this.videoMap ).then(list => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
     });
   }
   getPopularVideosByCategory(categoryId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
     limit = getLimit(limit);
     const skip = getSkip(nextPageToken);
-    const sql = `select ${buildFields(fields, videoFields)} from video where categoryId = $1 order by publishedAt desc limit ${limit} offset ${skip}`;
-    return query<Video>(this.client, sql, [categoryId], videoMap ).then(list => {
+    const sql = `select ${buildFields(fields, this.videoFields)} from video where categoryId = $1 order by publishedAt desc limit ${limit} offset ${skip}`;
+    return query<Video>(this.client, sql, [categoryId], this.videoMap ).then(list => {
       return {
         list,
         nextPageToken: getNextPageToken(list, limit, skip)
@@ -214,8 +229,8 @@ export class PostgreTubeService implements VideoService {
   getPopularVideosByRegion(regionCode: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
     limit = getLimit(limit);
     const skip = getSkip(nextPageToken);
-    const sql = `select ${buildFields(fields, videoFields)} from where video (blockedRegions is null or $1 != all(blockedRegions)) order by publishedAt desc limit ${limit} offset ${skip}`;
-    return query<Video>(this.client, sql, [regionCode], videoMap ).then(list => {
+    const sql = `select ${buildFields(fields, this.videoFields)} from where video (blockedRegions is null or $1 != all(blockedRegions)) order by publishedAt desc limit ${limit} offset ${skip}`;
+    return query<Video>(this.client, sql, [regionCode], this.videoMap ).then(list => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip)};
     });
   }
@@ -255,7 +270,7 @@ export function getSkip(nextPageToken: string): number {
   return 0;
 }
 export function buildVideoQuery(s: ItemSM, fields?: string[]): Statement {
-  let sql = `select ${buildFields(fields, videoFields)} from video`;
+  let sql = `select ${buildFields(fields, this.videoFields)} from video`;
   const condition = [];
   const args = [];
   let i = 1;
@@ -302,7 +317,7 @@ export function buildVideoQuery(s: ItemSM, fields?: string[]): Statement {
   return { query: sql, args };
 }
 export function buildPlaylistQuery(s: PlaylistSM, fields?: string[]): Statement {
-  let sql = `select ${buildFields(fields, playlistFields)} from playlist`;
+  let sql = `select ${buildFields(fields, this.playlistFields)} from playlist`;
   const condition = [];
   const args = [];
   let i = 1;
@@ -345,7 +360,7 @@ export function buildPlaylistQuery(s: PlaylistSM, fields?: string[]): Statement 
   return { query: sql, args };
 }
 export function buildChannelQuery(s: ChannelSM, fields?: string[]): Statement {
-  let sql = `select ${buildFields(fields, channelFields)} from channel`;
+  let sql = `select ${buildFields(fields, this.channelFields)} from channel`;
   const condition = [];
   const args = [];
   let i = 1;
