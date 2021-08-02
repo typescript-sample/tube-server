@@ -162,6 +162,7 @@ export class TubeController {
       .catch(err => handleError(err, res, this.log));
   }
   searchChannels(req: Request, res: Response) {
+
     const limit = queryNumber(req, 'limit', 10);
     const nextPageToken = query(req, 'nextPageToken');
     const fields = queryParams(req, 'fields');

@@ -69,7 +69,6 @@ export class PostgreTubeService implements VideoService {
     const skip = getSkip(nextPageToken);
     limit = getLimit(limit);
     const q = `select ${buildFields(fields, this.playlistFields)} from playlist where channelId=$1 order by publishedAt desc limit ${limit} offset ${skip}`;
-    console.log(q);
     return query<Playlist>(this.client, q, [channelId], this.playlistMap).then(results => {
       return {
         list : results,
@@ -150,7 +149,7 @@ export class PostgreTubeService implements VideoService {
       rating: 'publishedAt',
     };
     itemSM.sort = itemSM.sort ? getMapField(itemSM.sort, map) as any : undefined;
-    const sql = buildVideoQuery(itemSM, fields);
+    const sql = buildVideoQuery(itemSM, fields, this.videoFields);
     sql.query = sql.query + ` limit ${limit} offset ${skip}`;
     return query<Item>(this.client, sql.query, sql.args, this.videoMap).then(results => {
       return { list : results, nextPageToken: getNextPageToken(results, limit, skip) };
@@ -169,9 +168,8 @@ export class PostgreTubeService implements VideoService {
       rating: 'publishedAt',
     };
     playlistSM.sort = playlistSM.sort ? getMapField(playlistSM.sort, map) as any : undefined;
-    const sql = buildPlaylistQuery(playlistSM, fields);
+    const sql = buildPlaylistQuery(playlistSM, fields, this.playlistFields);
     sql.query = sql.query + ` limit ${limit} offset ${skip}`;
-    console.log(sql.query);
     return query<Playlist>(this.client, sql.query, sql.args, this.playlistMap).then(results => {
       return { list : results, nextPageToken: getNextPageToken(results, limit, skip) };
     });
@@ -186,7 +184,7 @@ export class PostgreTubeService implements VideoService {
       viewCount: 'playlistVideoItemCount',
     };
     channelSM.sort = channelSM.sort ? getMapField(channelSM.sort, map) as any : undefined;
-    const sql = buildChannelQuery(channelSM, fields);
+    const sql = buildChannelQuery(channelSM, fields, this.channelFields);
     sql.query = sql.query + ` limit ${limit} offset ${skip}`;
     return query<Channel>(this.client, sql.query, sql.args, this.channelMap).then(results => {
       return { list : results, nextPageToken: getNextPageToken(results, limit, skip) };
@@ -269,8 +267,8 @@ export function getSkip(nextPageToken: string): number {
   }
   return 0;
 }
-export function buildVideoQuery(s: ItemSM, fields?: string[]): Statement {
-  let sql = `select ${buildFields(fields, this.videoFields)} from video`;
+export function buildVideoQuery(s: ItemSM, fields?: string[], videoFields?: string[]): Statement {
+  let sql = `select ${buildFields(fields, videoFields)} from video`;
   const condition = [];
   const args = [];
   let i = 1;
@@ -316,8 +314,8 @@ export function buildVideoQuery(s: ItemSM, fields?: string[]): Statement {
   }
   return { query: sql, args };
 }
-export function buildPlaylistQuery(s: PlaylistSM, fields?: string[]): Statement {
-  let sql = `select ${buildFields(fields, this.playlistFields)} from playlist`;
+export function buildPlaylistQuery(s: PlaylistSM, fields?: string[], playlistFields?: string[]): Statement {
+  let sql = `select ${buildFields(fields, playlistFields)} from playlist`;
   const condition = [];
   const args = [];
   let i = 1;
@@ -359,8 +357,8 @@ export function buildPlaylistQuery(s: PlaylistSM, fields?: string[]): Statement 
   }
   return { query: sql, args };
 }
-export function buildChannelQuery(s: ChannelSM, fields?: string[]): Statement {
-  let sql = `select ${buildFields(fields, this.channelFields)} from channel`;
+export function buildChannelQuery(s: ChannelSM, fields?: string[], channelFields?: string[]): Statement {
+  let sql = `select ${buildFields(fields, channelFields)} from channel`;
   const condition = [];
   const args = [];
   let i = 1;
