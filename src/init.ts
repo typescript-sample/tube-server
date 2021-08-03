@@ -13,6 +13,7 @@ import { MongoVideoRepository } from './sync/MongoSyncRepository';
 import { PostgreVideoRepository } from './sync/PostgreSyncRepository';
 
 export function createContext(key?: string, db?: Db): ApplicationContext {
+  let poolTemp;
   const httpRequest = new HttpRequest(axios);
   const client = new YoutubeSyncClient(key, httpRequest);
   const categoryClient = new CategoryClient(key, httpRequest);
@@ -35,11 +36,12 @@ export function createContext(key?: string, db?: Db): ApplicationContext {
       password: '123',
       database: 'test'
     });
+    poolTemp = pool;
     videoRepository = new PostgreVideoRepository(pool);
     tubeService = new PostgreTubeService(pool, categoryClient.getCagetories);
   }
   const syncService = new DefaultSyncService(client, videoRepository);
-  const syncController = new SyncController(syncService);
+  const syncController = new SyncController(syncService, poolTemp);
   const videoController = new TubeController(tubeService, log, true);
   const ctx: ApplicationContext = { syncController, tubeController: videoController };
   return ctx;
