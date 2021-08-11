@@ -40,14 +40,8 @@ export function createContext(key?: string, db?: Client): ApplicationContext {
   //   videoRepository = new PostgreVideoRepository(pool);
   //   tubeService = new PostgreTubeService(pool, categoryClient.getCagetories);
   // }
-  const categoryTableName ='category';
-  const channelTableName = 'channel'
-  const channelSyncTableName ='channelSync';
-  const playlistTableName ='playlist';
-  const playlistVideoTableName ='playlistVideo';
-  const videoTableName ='video';
-  tubeService = new CassandraVideoService(db,categoryClient,channelTableName,channelSyncTableName,playlistTableName,playlistVideoTableName,videoTableName,categoryTableName);
-  videoRepository = new CassandraVideoRepository(db,channelTableName,channelSyncTableName,playlistTableName,playlistVideoTableName,videoTableName);
+  tubeService = new CassandraVideoService(db,categoryClient);
+  videoRepository = new CassandraVideoRepository(db);
   const syncService = new DefaultSyncService(client, videoRepository);
   const syncController = new SyncController(syncService);
   const videoController = new TubeController(tubeService, log, true);

@@ -1,5 +1,6 @@
+import { params, query, queryOne, save, saveBatch } from 'cassandra-core';
 import { ArrayOrObject, Client, QueryOptions, types } from 'cassandra-driver';
-import { Channel, ChannelSync, Playlist, PlaylistCollection, SyncRepository, Video } from 'video-service';
+import { Channel, channelModel, ChannelSync, channelSyncModel, Playlist, PlaylistCollection, playlistModel, playlistVideoModel, SyncRepository, Video, videoModel } from 'video-service';
 
 export interface Statement {
   query: string;
@@ -8,221 +9,41 @@ export interface Statement {
 
 export class CassandraVideoRepository implements SyncRepository {
   private readonly client: Client;
-  private readonly channelsTable: string;
-  private readonly videosTable: string;
-  private readonly channelSyncTable: string;
-  private readonly playlistsTable: string;
-  private readonly playlistVideoTable: string;
-  constructor(db: Client, channelTable: string, channelSyncTable: string, playlistTable: string, playlistVideoTable: string, videoTable: string) {
+  constructor(db: Client) {
     this.client = db;
-    this.channelsTable = channelTable;
-    this.videosTable = videoTable;
-    this.channelSyncTable = channelSyncTable;
-    this.playlistsTable = playlistTable;
-    this.playlistVideoTable = playlistVideoTable;
   }
   getChannelSync(channelId: string): Promise<ChannelSync> {
-    const query = `select * from ${this.channelSyncTable} where id = ?`;
-    return this.client.execute(query, [channelId], { prepare: true }).then(result => {
-      return result.rows[0];
-    }).catch(err => {
-      return err;
-    });
+    const sql = `select * from channelSync where id = ?`;
+    return queryOne(this.client, sql, [channelId]);
   }
   saveChannel(channel: Channel): Promise<number> {
-    const keys = Object.keys(channel);
-    const params = Object.values(channel);
-    const queryQuestion = [];
-    keys.forEach(() => {
-      queryQuestion.push('?');
-    });
-    const queries = {
-      query: `insert into ${this.channelsTable} (${keys.join()}) values (${queryQuestion.join()})`,
-      params
-    };
-    return this.client.batch([queries], { prepare: true }).then(result => {
-      return result.rows;
-    }).catch(err => {
-      console.log(err);
-      return err;
-    });
+    return save(this.client, channel, 'channel', channelModel.attributes);
   }
   saveChannelSync(channel: ChannelSync): Promise<number> {
-    const keys = Object.keys(channel);
-    const params = Object.values(channel);
-    const queryQuestion = [];
-    keys.forEach(() => {
-      queryQuestion.push('?');
-    });
-    const queries = {
-      query: `insert into ${this.channelSyncTable} (${keys.join()}) values (${queryQuestion.join()})`,
-      params
-    };
-    return this.client.batch([queries], { prepare: true }).then(result => {
-      return result.rows;
-    }).catch(err => {
-      console.log(err);
-      return err;
-    });
+    return save(this.client, channel, 'channelSync', channelSyncModel.attributes);
   }
-  async savePlaylist(playlist: Playlist): Promise<number> {
-    const keys = Object.keys(playlist);
-    const params = Object.values(playlist);
-    const queryQuestion = [];
-    keys.forEach(() => {
-      queryQuestion.push('?');
-    });
-    const queries = {
-      query: `insert into ${this.playlistsTable} (${keys.join()}) values (${queryQuestion.join()})`,
-      params
-    };
-    return this.client.batch([queries], { prepare: true }).then(result => {
-      return result.rows[0];
-    }).catch(err => {
-      return err;
-    });
+  savePlaylist(playlist: Playlist): Promise<number> {
+    return save(this.client, playlist, 'playlist', playlistModel.attributes);
   }
-  async savePlaylists(playlists: Playlist[]): Promise<number> {
-    const queries = playlists.map(item => {
-      const queryQuestion = [];
-      const params = Object.values(item);
-      const keys = Object.keys(item);
-      keys.forEach(() => {
-        queryQuestion.push('?');
-      });
-      return  {
-        query: `insert into ${this.playlistsTable} (${keys.join()}) values (${queryQuestion.join()})`,
-        params
-      };
-    });
-    const result = await batchToLarge<Playlist[]>(this.client, queries, 15, 5, undefined);
-    return result ? result.length : 0;
+  savePlaylists(playlists: Playlist[]): Promise<number> {
+    return saveBatch(this.client, playlists, 'playlist', playlistModel.attributes, 5);
   }
-  async saveVideos(videos: Video[]): Promise<number> {
-    const queries = videos.map(item => {
-      const queryQuestion = [];
-      const params = Object.values(item);
-      const keys = Object.keys(item);
-      keys.forEach(() => {
-        queryQuestion.push('?');
-      });
-      return  {
-        query: `insert into ${this.videosTable} (${keys.join()}) values (${queryQuestion.join()})`,
-        params
-      };
-    });
-    const result = await batchToLarge<Video[]>(this.client, queries, 5, 5, undefined);
-    return result ? result.length : 0;
+  saveVideos(videos: Video[]): Promise<number> {
+    return saveBatch(this.client, videos, 'video', videoModel.attributes, 5);
   }
-  async savePlaylistVideos(id: string, videos: string[]): Promise<number> {
-    const playlistVideo: PlaylistCollection = {
-      id,
-      videos,
-    };
-    const keys = Object.keys(playlistVideo);
-    const params = Object.values(playlistVideo);
-    const queryQuestion = [];
-    keys.forEach(() => {
-      queryQuestion.push('?');
-    });
-    const queries = {
-      query: `insert into ${this.playlistVideoTable} (${keys.join()}) values (${queryQuestion.join()})`,
-      params
-    };
-    return this.client.batch([queries], { prepare: true }).then(result => {
-      return result.rows[0];
-    }).catch(err => {
-      return err;
-    });
+  savePlaylistVideos(id: string, videos: string[]): Promise<number> {
+    const playlistVideo: PlaylistCollection = { id, videos};
+    return save(this.client, playlistVideo, 'playlistVideo', playlistVideoModel.attributes);
   }
-  async getVideoIds(ids: string[]): Promise<string[]> {
-    const queryQuestion = [];
-    ids.forEach(() => {
-      queryQuestion.push('?');
-    });
-    const query = `select id from ${this.videosTable} where id in (${queryQuestion.join()})`;
-    const result = this.client.execute(query, ids, { prepare: true }).then(r => {
-     return r.rows;
-    }).catch((err) => {
-      console.log(err);
-      return err;
-    });
-    return result;
-  }
-}
-
-export function batch<T> (client: Client, queries: Statement[], option: QueryOptions): Promise<T> {
-  return client.batch( queries, option ? option : { prepare: true }).then((result) => {
-    return result.rows;
-  }).catch((err) => {
-    console.log('batch', err);
-    return err;
-  });
-}
-
-export async function batchToLarge<T> (client: Client, queries: Statement[] , range: number , bactchItems: number, option: QueryOptions ):  Promise<T> {
-  if (queries.length > range ) {
-    const arrayPromise = [];
-    while (queries.length !== 0) {
-      if (queries.length > bactchItems) {
-        arrayPromise.push(client.batch(queries.splice(0, bactchItems), option ? option : { prepare: true })) ;
-      } else {
-        arrayPromise.push(client.batch(queries.splice(0, queries.length),  option ? option : { prepare: true })) ;
-      }
-    }
-    return await handlePromiseAll<T>(arrayPromise);
-  } else {
-    return client.batch( queries, option ? option : { prepare: true }).then((result) => {
-      return result.rows;
-    }).catch((err) => {
-      console.log('batch', err);
-      return err;
-    });
-  }
-}
-
-export function handlePromiseAll<T> (arrayPromise: Promise<types.ResultSet>[]): Promise<T> {
-  return Promise.all(arrayPromise).then((result) => {
-    let arrRealResult = [];
-    result.forEach(item => {
-      if (item.rows) {
-        arrRealResult = [... arrRealResult, ...item.rows];
-      }
-    });
-    return arrRealResult;
-  }).catch((err) => {
-    console.log(err);
-    return err;
-  });
-}
-
-export function buildFields<T>(fields: string[], all?: string[]): string {
-  const s = getFields(fields, all);
-  if (!s || s.length === 0) {
-    return '*';
-  } else {
-    return s.join();
-  }
-}
-
-export function getFields<T>(fields: string[], all?: string[]): string[] {
-  if (!fields || fields.length === 0) {
-    return undefined;
-  }
-  const existFields: string [] = [];
-  if (all) {
-    for (const s of fields) {
-      if (all.includes(s)) {
-        existFields.push(s);
-      }
-    }
-    if (existFields.length === 0) {
-      return all;
+  getVideoIds(ids: string[]): Promise<string[]> {
+    if (!ids || ids.length === 0) {
+      return Promise.resolve([]);
     } else {
-      return existFields;
+      const ps = params(ids.length);
+      const s = `select id from video where id in (${ps.join(',')})`;
+      return query<Video>(this.client, s, ids).then(r => {
+        return r.map(i => i.id);
+      });
     }
-
-  } else {
-    return fields;
   }
 }

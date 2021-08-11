@@ -32,7 +32,7 @@ export class TubeController {
     }
   }
   getChannel(req: Request, res: Response) {
-    const id = param(req, res, 'id');
+    const id = param(req, res, 'id');    
     if (id) {
       const fields = queryParams(req, 'fields');
       this.videoService

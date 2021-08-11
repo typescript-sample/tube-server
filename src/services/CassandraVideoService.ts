@@ -1,7 +1,8 @@
+import { buildFields, params, query, queryOne } from 'cassandra-core';
 import {Client , QueryOptions } from 'cassandra-driver';
 import { handleResults, isEmpty, mapArray, metadata } from 'postgre';
 import { CategoryClient, Channel, channelModel, ChannelSM, Item, ItemSM, ListResult, Playlist, playlistModel, PlaylistSM, PlaylistVideo, StringMap, Video, VideoCategory, videoModel, VideoService} from 'video-service';
-import { buildFields } from '../sync/CassandraSyncRepository';
+// import { buildFields } from '../sync/CassandraSyncRepository';
 
 export interface CategoryCollection {
   id: string;
@@ -11,24 +12,14 @@ export interface CategoryCollection {
 export class CassandraVideoService implements VideoService {
   private readonly client: Client;
   private readonly channelId = 'channelId';
-  private readonly channelsTable: string;
-  private readonly videosTable: string;
-  private readonly playlistsTable: string;
-  private readonly playlistVideoTable: string;
-  private readonly categorisTable: string;
   channelFields: string[];
   channelMap: StringMap;
   playlistFields: string[];
   playlistMap: StringMap;
   videoFields: string[];
   videoMap: StringMap;
-  constructor(db: Client, private categoryClient: CategoryClient, channelTable: string, channelSyncTable: string, playlistTable: string, playlistVideoTable: string, videoTable: string, categoryTable: string) {
+  constructor(db: Client, private categoryClient: CategoryClient) {
     this.client = db;
-    this.channelsTable = channelTable;
-    this.videosTable = videoTable;
-    this.playlistsTable = playlistTable;
-    this.playlistVideoTable = playlistVideoTable;
-    this.categorisTable = categoryTable;
     const channelMeta = metadata(channelModel.attributes);
     this.channelFields = channelMeta.fields;
     this.channelMap = channelMeta.map;
@@ -39,72 +30,54 @@ export class CassandraVideoService implements VideoService {
     this.videoFields = videoMeta.fields;
     this.videoMap = videoMeta.map;
   }
-  async getChannel(channelId: string , fields?: string[]): Promise<Channel> {
-    const query = `select ${buildFields(fields, this.channelFields)} from ${this.channelsTable} where id = ?`;
-    return this.client.execute(query, [channelId], { prepare: true }).then(result => {
-      return handleResults(result.rows, this.channelMap)[0];
-    }).catch(err => {
-      return err;
-    });
+  getChannel(channelId: string , fields?: string[]): Promise<Channel> {
+    const query = `select ${buildFields(fields, this.channelFields)} from channel where id = ?`;
+    return queryOne(this.client, query, [channelId]);
   }
-  async getChannels(channelIds: string[], fields?: string[]): Promise<Channel[]> {
-    const queryQuestion = [];
-    channelIds.forEach(() => {
-      queryQuestion.push('?');
-    });
-    const query = `select ${buildFields(fields, this.channelFields)} from ${this.channelsTable} where id in (${queryQuestion.join()})`;
-    return this.client.execute(query , channelIds , { prepare: true }).then((result) => {
-      return handleResults(result.rows, this.channelMap);
-    }).catch(err => {
-      console.log(err);
-      return err;
-    });
+  getChannels(channelIds: string[], fields?: string[]): Promise<Channel[]> {
+    if(!channelIds || channelIds.length <= 0) {
+      return Promise.resolve([]);
+    }else{
+      const ps = params(channelIds.length);
+      const s = `select ${buildFields(fields, this.channelFields)} from channel where id in (${ps.join(",")})`;
+      return query<Channel>(this.client, s, channelIds).then(r => {
+        return r;
+      });
+    }
   }
   getPlaylist(id: string, fields?: string[]): Promise<Playlist> {
-    const query = `select ${buildFields(fields, this.playlistFields)} from ${this.playlistsTable} where id = ?`;
-    return this.client.execute(query, [id], { prepare: true }).then(result => {
-      return handleResults(result.rows, this.playlistMap)[0];
-    }).catch(err => {
-      return err;
-    });
+    const query = `select ${buildFields(fields, this.playlistFields)} from playlist where id = ?`;
+    return queryOne(this.client, query, [id]);
   }
-  async getPlaylists(ids: string[], fields?: string[]): Promise<Playlist[]> {
-    const queryQuestion = [];
-    ids.forEach(() => {
-      queryQuestion.push('?');
-    });
-    const query = `select ${buildFields(fields, this.playlistFields)} from ${this.playlistsTable} where id in (${queryQuestion.join()})`;
-    return this.client.execute(query , ids , { prepare: true }).then((result) => {
-      return handleResults(result.rows, this.playlistMap);
-    }).catch(err => {
-      console.log(err);
-      return err;
-    });
+  getPlaylists(ids: string[], fields?: string[]): Promise<Playlist[]> {
+    if(!ids || ids.length <= 0) {
+      return Promise.resolve([]);
+    }else{
+      const ps = params(ids.length);
+      const s = `select ${buildFields(fields, this.playlistFields)} from playlist where id in (${ps.join(",")})`;
+      return query<Playlist>(this.client, s, ids).then(r => {
+        return r;
+      });
+    }
   }
-  async getVideo(id: string, fields?: string[], noSnippet?: boolean): Promise<Video> {
-    const query = `select ${buildFields(fields, this.videoFields)} from ${this.videosTable} where id = ?`;
-    return this.client.execute(query, [id], { prepare: true }).then(result => {
-      return handleResults(result.rows, this.videoMap)[0];
-    }).catch(err => {
-      return err;
-    });
+  getVideo(id: string, fields?: string[], noSnippet?: boolean): Promise<Video> {
+    const query = `select ${buildFields(fields, this.videoFields)} from video where id = ?`;
+    return queryOne(this.client, query, [id]);
   }
-  async getVideos(ids: string[], fields?: string[], noSnippet?: boolean): Promise<Video[]> {
-    const queryQuestion = [];
-    ids.forEach(() => {
-      queryQuestion.push('?');
-    });
-    const query = `select ${buildFields(fields, this.videoFields)} from ${this.videosTable} where id in (${queryQuestion.join()})`;
-    return this.client.execute(query, ids, { prepare: true }).then(result => {
-      return handleResults(result.rows, this.videoMap);
-    }).catch(err => {
-      return err;
-    });
+  getVideos(ids: string[], fields?: string[], noSnippet?: boolean): Promise<Video[]> {
+    if(!ids || ids.length <= 0) {
+      return Promise.resolve([]);
+    }else{
+      const ps = params(ids.length);
+      const s = `select ${buildFields(fields, this.videoFields)} from video where id in (${ps.join(",")})`;
+      return query<Video>(this.client, s, ids).then(r => {
+        return r;
+      });
+    }
   }
-  async getChannelPlaylists(channelId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Playlist>> {
+  getChannelPlaylists(channelId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Playlist>> {
     max = getLimit(max);
-    const next = getSkipString(nextPageToken);
-    const options = getOption(next, max);
+    const options = getOption(nextPageToken, max);
     const sort = [{field: `publishedat`, reverse: true}];
     const must = [{type: 'match', field: `${this.channelId.toLowerCase()}`, value: `${channelId}`}];
     const a = {
@@ -114,21 +87,21 @@ export class CassandraVideoService implements VideoService {
       sort
     };
     const queryObj = JSON.stringify(a);
-    const query = `select ${buildFields(fields, this.videoFields)} from ${this.playlistsTable} where expr(playlist_index, '${queryObj}')`;
+    const query = `select ${buildFields(fields, this.videoFields)} from playlist where expr(playlist_index, '${queryObj}')`;
     return this.client.execute(query, undefined, options ).then((result) => {
       return {
         list: mapArray(result.rows, this.playlistMap),
-        nextPageToken: getNextPageTokenString(result.rows, max, result.pageState),
+        nextPageToken:  result.pageState,
       };
     }).catch((err) => {
       console.log(err);
       return err;
     });
   }
-  async getPlaylistVideos(playlistId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>> {
+  getPlaylistVideos(playlistId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>> {
     const limit = getLimit(max);
     const skip = getSkipNumber(nextPageToken);
-    const query = `select videos from ${this.playlistVideoTable} where id = ? `;
+    const query = `select videos from playlistVideo where id = ? `;
     return this.client.execute(query, [playlistId], { prepare: true }).then((playlist) => {
       let checkNext = false;
       if (skip + limit === playlist.rows[0].videos.length) {
@@ -139,7 +112,7 @@ export class CassandraVideoService implements VideoService {
       ids.forEach(() => {
         queryQuestion.push('?');
       });
-      const sql = `select ${buildFields(fields, this.videoFields)} from ${this.videosTable} where id in (${queryQuestion.join()})`;
+      const sql = `select ${buildFields(fields, this.videoFields)} from video where id in (${queryQuestion.join()})`;
       return this.client.execute(sql, ids, { prepare: true }).then(result => {
         return handleResults(result.rows, this.videoMap);
       });
@@ -149,13 +122,12 @@ export class CassandraVideoService implements VideoService {
   }
   search(sm: ItemSM, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
     const limit = getLimit(max);
-    const next = getSkipString(nextPageToken);
-    const options = getOption(next, limit);
-    const objQuery = buildSearchQuery(sm, this.videosTable, 'video_index', fields, this.videoFields);
+    const options = getOption(nextPageToken, limit);
+    const objQuery = buildSearchQuery(sm, "video", 'video_index', fields, this.videoFields);
     return this.client.execute(objQuery.query, undefined, options ).then((result) => {
       return {
         list: mapArray(result.rows, this.videoMap),
-        nextPageToken: getNextPageTokenString(result.rows, max, result.pageState),
+        nextPageToken: result.pageState,
       };
     }).catch((err) => {
       console.log(err);
@@ -164,13 +136,12 @@ export class CassandraVideoService implements VideoService {
   }
   searchVideos(sm: ItemSM, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
     const limit = getLimit(max);
-    const next = getSkipString(nextPageToken);
-    const options = getOption(next, limit);
-    const objQuery = buildSearchQuery(sm, this.videosTable, 'video_index', fields, this.videoFields);
+    const options = getOption(nextPageToken, limit);
+    const objQuery = buildSearchQuery(sm, "video", 'video_index', fields, this.videoFields);
     return this.client.execute(objQuery.query, undefined, options ).then((result) => {
       return {
         list: mapArray(result.rows, this.videoMap),
-        nextPageToken: getNextPageTokenString(result.rows, max, result.pageState),
+        nextPageToken: result.pageState,
       };
     }).catch((err) => {
       console.log(err);
@@ -179,13 +150,12 @@ export class CassandraVideoService implements VideoService {
   }
   searchPlaylists(sm: PlaylistSM, max?: number, nextPageToken?: string , fields?: string[]): Promise<ListResult<Playlist>> {
     max = getLimit(max);
-    const next = getSkipString(nextPageToken);
-    const options = getOption(next, max);
-    const objQuery = buildSearchQuery(sm, this.playlistsTable, 'playlist_index', fields, this.playlistFields);
+    const options = getOption(nextPageToken, max);
+    const objQuery = buildSearchQuery(sm," playlist", 'playlist_index', fields, this.playlistFields);
     return this.client.execute(objQuery.query, undefined, options ).then((result) => {
       return {
         list: mapArray(result.rows, this.playlistMap),
-        nextPageToken: getNextPageTokenString(result.rows, max, result.pageState),
+        nextPageToken:  result.pageState,
       };
     }).catch((err) => {
       console.log(err);
@@ -194,13 +164,12 @@ export class CassandraVideoService implements VideoService {
   }
   searchChannels(sm: ChannelSM, max?: number, nextPageToken?: string , fields?: string[]): Promise<ListResult<Channel>> {
     max = getLimit(max);
-    const next = getSkipString(nextPageToken);
-    const options = getOption(next, max);
-    const objQuery = buildSearchQuery(sm, this.channelsTable, 'channel_index', fields, this.channelFields);
+    const options = getOption(nextPageToken, max);
+    const objQuery = buildSearchQuery(sm, "channel", 'channel_index', fields, this.channelFields);
     return this.client.execute(objQuery.query, undefined, options ).then((result) => {
       return {
         list: mapArray(result.rows, this.channelMap),
-        nextPageToken: getNextPageTokenString(result.rows, max, result.pageState),
+        nextPageToken: result.pageState,
       };
     }).catch((err) => {
       console.log(err);
@@ -209,8 +178,7 @@ export class CassandraVideoService implements VideoService {
   }
   getRelatedVideos(videoId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
     max = getLimit(max);
-    const next = getSkipString(nextPageToken);
-    const options = getOption(next, max);
+    const options = getOption(nextPageToken, max);
     return this.getVideo(videoId).then((video) => {
       if (!video) {
         const r: ListResult<Item> = { list: [] };
@@ -220,11 +188,11 @@ export class CassandraVideoService implements VideoService {
         const not = [{type: 'match', field: 'id', value: videoId}];
         const sort = [{field: `publishedat`, reverse: true}];
         const queryObj = `{filter: [{should:${JSON.stringify(should)}} ${not.length > 0 ? `,{not:${JSON.stringify(not)}}` : ''}] ${sort.length > 0 ? `,sort: ${JSON.stringify(sort)}` : ''}}`;
-        const query = `select ${buildFields(fields, this.videoFields)} from ${this.videosTable} where expr(video_index, '${queryObj}')`;
+        const query = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
         return this.client.execute(query, undefined, options ).then((result) => {
           return {
             list: mapArray(result.rows, this.videoMap),
-            nextPageToken: getNextPageTokenString(result.rows, max, result.pageState),
+            nextPageToken: result.pageState,
           };
         }).catch((err) => {
           console.log(err);
@@ -235,15 +203,14 @@ export class CassandraVideoService implements VideoService {
   }
   getPopularVideos(regionCode?: string, videoCategoryId?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
     max = getLimit(max);
-    const next = getSkipString(nextPageToken);
-    const options = getOption(next, max);
+    const options = getOption(nextPageToken, max);
     const sort = [{field: `publishedat`, reverse: true}];
     const queryObj = `{${sort.length > 0 ? `sort: ${JSON.stringify(sort)}` : ''}}`;
-    const query = `select ${buildFields(fields, this.videoFields)} from ${this.videosTable} where expr(video_index, '${queryObj}')`;
+    const query = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
     return this.client.execute(query, undefined, options ).then((result) => {
       return {
         list: mapArray(result.rows, this.videoMap),
-        nextPageToken: getNextPageTokenString(result.rows, max, result.pageState),
+        nextPageToken: result.pageState,
       };
     }).catch((err) => {
         console.log(err);
@@ -252,16 +219,15 @@ export class CassandraVideoService implements VideoService {
   }
   getPopularVideosByCategory(videoCategoryId?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
     max = getLimit(max);
-    const next = getSkipString(nextPageToken);
-    const options = getOption(next, max);
+    const options = getOption(nextPageToken, max);
     const should = [{type: 'match', field: 'categoryid', value: videoCategoryId}];
     const sort = [{field: `publishedat`, reverse: true}];
     const queryObj = `{filter: [{should:${JSON.stringify(should)}}] ${sort.length > 0 ? `,sort: ${JSON.stringify(sort)}` : ''}}`;
-    const query = `select ${buildFields(fields, this.videoFields)} from ${this.videosTable} where expr(video_index, '${queryObj}')`;
+    const query = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
     return this.client.execute(query, undefined, options ).then((result) => {
       return {
         list: mapArray(result.rows, this.videoMap),
-        nextPageToken: getNextPageTokenString(result.rows, max, result.pageState),
+        nextPageToken: result.pageState,
       };
     }).catch((err) => {
       console.log(err);
@@ -270,8 +236,7 @@ export class CassandraVideoService implements VideoService {
   }
   getPopularVideosByRegion(regionCode?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
     max = getLimit(max);
-    const next = getSkipString(nextPageToken);
-    const options = getOption(next, max);
+    const options = getOption(nextPageToken, max);
     const sort = [{field: `publishedat`, reverse: true}];
     const not = [{type: 'contains', field: 'blockedregions', values: [regionCode]}];
     let a: any;
@@ -288,11 +253,11 @@ export class CassandraVideoService implements VideoService {
       };
     }
     const queryObj = JSON.stringify(a);
-    const query = `select ${buildFields(fields, this.videoFields)} from ${this.videosTable} where expr(video_index, '${queryObj}')`;
+    const query = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
     return this.client.execute(query, undefined, options ).then((result) => {
       return {
         list: mapArray(result.rows, this.videoMap),
-        nextPageToken: getNextPageTokenString(result.rows, max, result.pageState),
+        nextPageToken: result.pageState,
       };
     }).catch((err) => {
       console.log(err);
@@ -300,18 +265,18 @@ export class CassandraVideoService implements VideoService {
     });
   }
   getCagetories(regionCode: string): Promise<VideoCategory[]> {
-    const query = `select * from ${this.categorisTable} where id = ?`;
+    const query = `select * from category where id = ?`;
     return this.client.execute(query, [regionCode], {prepare: true}).then((category) => {
       if (category.rows[0]) {
         return category.rows[0];
       } else {
-        return this.categoryClient.getCagetories(regionCode).then((r) => {
+        return this.categoryClient.getCagetories(regionCode).then(async (r) => {
           const categoryToSave: VideoCategory[] = r.filter((item) => item.assignable === true);
           const newCategoryCollection: CategoryCollection = {
             id: regionCode,
             data: categoryToSave,
           };
-          const sql = `INSERT INTO ${this.categorisTable} (id,data) VALUES (?,?)`;
+          const sql = `INSERT INTO category (id,data) VALUES (?,?)`;
           const queries = {
             query: sql,
             params: newCategoryCollection
@@ -322,25 +287,24 @@ export class CassandraVideoService implements VideoService {
             console.log(err);
             return err;
           });
-        });
+        })
       }
     }).catch(err => {
       console.log(err);
       return err;
     });
   }
-  async getChannelVideos(channelId: string, max: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>> {
+  getChannelVideos(channelId: string, max: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>> {
     max = getLimit(max);
-    const next = getSkipString(nextPageToken);
-    const options = getOption(next, max);
+    const options = getOption(nextPageToken, max);
     const should = [{type: 'match', field: 'channelid', value: channelId}];
     const sort = [{field: `publishedat`, reverse: true}];
     const queryObj = `{filter: [{should:${JSON.stringify(should)}}] ${sort.length > 0 ? `,sort: ${JSON.stringify(sort)}` : ''}}`;
-    const query = `select ${buildFields(fields, this.videoFields)} from ${this.videosTable} where expr(video_index, '${queryObj}')`;
+    const query = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
     return this.client.execute(query, undefined, options ).then((result) => {
       return {
         list: mapArray(result.rows, this.videoMap),
-        nextPageToken: getNextPageTokenString(result.rows, max, result.pageState),
+        nextPageToken: result.pageState,
       };
     }).catch((err) => {
       console.log(err);
@@ -451,7 +415,7 @@ export function buildSearchQuery(s: any , tableName: string, index: string, fiel
       } else if ( s.publishedAfter) {
         must.push({type: 'range', field: 'publishedat', upper: s.publishedAfter.toISOString().replace('T', ' ')});
       } else if (s.publishedBefore) {
-        must.push({type: 'range', field: 'publishedat', lower: s.publishedAfter.toISOString().replace('T', ' ')});
+        must.push({type: 'range', field: 'publishedat', lower: s.publishedBefore.toISOString().replace('T', ' ')});
       }
     } else if (key === 'regionCode') {
       if (!isEmpty(s.regionCode)) {
@@ -474,16 +438,16 @@ export function buildSearchQuery(s: any , tableName: string, index: string, fiel
   const a = {
     filter: {
       should,
-      must,
       not,
     },
+    query:must,
     sort
   };
   if (should.length === 0) {
     delete a.filter.should;
   }
   if (must.length === 0) {
-    delete a.filter.must;
+    delete a.query;
   }
   if (not.length === 0) {
     delete a.filter.not;

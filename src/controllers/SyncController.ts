@@ -17,7 +17,7 @@ export interface ChannelSubscriptions {
 export class SyncController {
   protected client: PoolClient;
   constructor(private service: SyncService, pool?: Pool) {
-    pool.connect().then(client => this.client = client);
+    // pool.connect().then(client => this.client = client);
     this.syncChannel = this.syncChannel.bind(this);
     this.syncPlaylist = this.syncPlaylist.bind(this);
     this.getSubscriptions = this.getSubscriptions.bind(this);
