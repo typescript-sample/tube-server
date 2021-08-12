@@ -34,7 +34,7 @@ export class TubeController {
   }
   async getSubscriptions(req: Request, res: Response) {
     const channelId = param(req, res, 'id');
-    if(channelId){
+    if (channelId) {
       this.videoService
         .getSubscriptions(channelId)
         .then(results => res.status(200).json(results))

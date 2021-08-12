@@ -9,7 +9,6 @@ export * from './service';
 export * from './youtube';
 export * from './sync';
 
-
 export function getLimit(limit?: number, d?: number): number {
   if (limit) {
     return limit;
@@ -46,7 +45,7 @@ export class YoutubeSyncClient implements SyncClient {
     const url = `https://www.googleapis.com/youtube/v3/channels?key=${this.key}&id=${ids.join(',')}&part=snippet,contentDetails`;
     return this.httpRequest.get<YoutubeListResult<ListItem<string, ChannelSnippet, ChannelDetail>>>(url).then(res => formatThumbnail(fromYoutubeChannels(res)));
   }
-  getSubscriptions(channelId: string): Promise<ChannelSubscriptions>{
+  getSubscriptions(channelId: string): Promise<ChannelSubscriptions> {
     return getSubcriptionsFromYoutube(this.httpRequest, this.key, channelId);
   }
   getChannel(id: string): Promise<Channel> {
@@ -101,7 +100,6 @@ export class YoutubeSyncClient implements SyncClient {
     });
   }
 }
-
 export class DefaultSyncService implements SyncService {
   constructor(private client: SyncClient, private repo: SyncRepository, private log?: (msg: any, ctx?: any) => void) {
     this.syncChannel = this.syncChannel.bind(this);
@@ -346,7 +344,7 @@ export function formatThumbnail<T extends Thumbnail>(t: T[]): T[] {
   }
   return t;
 }
-export function getSubcriptions(httpRequest: HttpRequest ,key: string, channelId?: string, mine?: boolean, max?: number, nextPageToken?: string | number): Promise<ListResult<Channel>> {
+export function getSubcriptions(httpRequest: HttpRequest, key: string, channelId?: string, mine?: boolean, max?: number, nextPageToken?: string | number): Promise<ListResult<Channel>> {
   const maxResults = (max && max > 0 ? max : 4);
   const pageToken = (nextPageToken ? `&pageToken=${nextPageToken}` : '');
   const mineStr = (mine ? `&mine=${mine}` : '');
@@ -360,33 +358,30 @@ export function getSubcriptions(httpRequest: HttpRequest ,key: string, channelId
     return r;
   });
 }
-export async function getSubcriptionsFromYoutube(httpRequest: HttpRequest, key: string, channelId: string): Promise<ChannelSubscriptions>{
-  let channelIds: string[] = [];
+export async function getSubcriptionsFromYoutube(httpRequest: HttpRequest, key: string, channelId: string): Promise<ChannelSubscriptions> {
+  const channelIds: string[] = [];
   let nextPageToken = '';
   let count = 0;
-  let all = 0;
   let allChannelCount = 0;
-  try{
+  try {
     while (nextPageToken !== undefined) {
       const subscriptions = await getSubcriptions(httpRequest, key, channelId, undefined, 2, nextPageToken);
-      all = subscriptions.total;
       count = count + subscriptions.list.length;
       for (const p of subscriptions.list) {
         channelIds.push(p.id);
         allChannelCount = allChannelCount + p.count;
       }
       nextPageToken = subscriptions.nextPageToken;
-    };
+    }
     const channelSubscriptions: ChannelSubscriptions = {
-      id: channelId, 
+      id: channelId,
       data: channelIds
     };
     return channelSubscriptions;
-  }
-  catch(err){
-    if(err){
+  } catch (err) {
+    if (err) {
       const channelSubscriptions: ChannelSubscriptions = {
-        id: channelId, 
+        id: channelId,
         data: []
       };
       return channelSubscriptions;

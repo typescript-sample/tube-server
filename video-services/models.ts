@@ -268,5 +268,5 @@ export interface SubscriptionSnippet extends Title {
 }
 export interface SubscriptionResource {
   kind: string;
-  channelId: string
+  channelId: string;
 }
