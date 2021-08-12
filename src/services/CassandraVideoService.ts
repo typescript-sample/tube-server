@@ -1,4 +1,4 @@
-import { buildFields, handleResults, isEmpty, mapArray, metadata, params, query, queryOne } from 'cassandra-core';
+import { buildFields, handleResults, isEmpty, mapArray, metadata, params, query, queryOne, Statement } from 'cassandra-core';
 import { Client , QueryOptions } from 'cassandra-driver';
 import { CategoryClient, Channel, channelModel, ChannelSM, getLimit, Item, ItemSM, ListResult, Playlist, playlistModel, PlaylistSM, PlaylistVideo, StringMap, Video, VideoCategory, videoModel, VideoService } from 'video-service';
 
@@ -30,7 +30,7 @@ export class CassandraVideoService implements VideoService {
   }
   getChannel(channelId: string , fields?: string[]): Promise<Channel> {
     const sql = `select ${buildFields(fields, this.channelFields)} from channel where id = ?`;
-    return queryOne(this.client, sql, [channelId]);
+    return queryOne(this.client, sql, [channelId], this.channelMap);
   }
   getChannels(channelIds: string[], fields?: string[]): Promise<Channel[]> {
     if (!channelIds || channelIds.length <= 0) {
@@ -39,13 +39,9 @@ export class CassandraVideoService implements VideoService {
       const ps = params(channelIds.length);
       const s = `select ${buildFields(fields, this.channelFields)} from channel where id in (${ps.join(',')})`;
       return query<Channel>(this.client, s, channelIds).then(r => {
-        return r;
+        return mapArray(r,this.channelMap);
       });
     }
-  }
-  getPlaylist(id: string, fields?: string[]): Promise<Playlist> {
-    const sql = `select ${buildFields(fields, this.playlistFields)} from playlist where id = ?`;
-    return queryOne(this.client, sql, [id]);
   }
   getPlaylists(ids: string[], fields?: string[]): Promise<Playlist[]> {
     if (!ids || ids.length <= 0) {
@@ -54,24 +50,13 @@ export class CassandraVideoService implements VideoService {
       const ps = params(ids.length);
       const s = `select ${buildFields(fields, this.playlistFields)} from playlist where id in (${ps.join(',')})`;
       return query<Playlist>(this.client, s, ids).then(r => {
-        return r;
+        return mapArray(r,this.playlistMap);;
       });
     }
   }
-  getVideo(id: string, fields?: string[], noSnippet?: boolean): Promise<Video> {
-    const sql = `select ${buildFields(fields, this.videoFields)} from video where id = ?`;
-    return queryOne(this.client, sql, [id]);
-  }
-  getVideos(ids: string[], fields?: string[], noSnippet?: boolean): Promise<Video[]> {
-    if (!ids || ids.length <= 0) {
-      return Promise.resolve([]);
-    } else {
-      const ps = params(ids.length);
-      const s = `select ${buildFields(fields, this.videoFields)} from video where id in (${ps.join(',')})`;
-      return query<Video>(this.client, s, ids).then(r => {
-        return r;
-      });
-    }
+  getPlaylist(id: string, fields?: string[]): Promise<Playlist> {
+    const sql = `select ${buildFields(fields, this.playlistFields)} from playlist where id = ?`;
+    return queryOne(this.client, sql, [id], this.playlistMap);
   }
   getChannelPlaylists(channelId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Playlist>> {
     max = getLimit(max);
@@ -87,168 +72,58 @@ export class CassandraVideoService implements VideoService {
     const queryObj = JSON.stringify(a);
     const sql = `select ${buildFields(fields, this.videoFields)} from playlist where expr(playlist_index, '${queryObj}')`;
     return this.client.execute(sql, undefined, options ).then(result => {
-      return {
-        list: mapArray(result.rows, this.playlistMap),
-        nextPageToken:  result.pageState,
+      const res : ListResult<Playlist> = {
+        list: mapArray(result.rows as any, this.playlistMap),
       };
-    }).catch((err) => {
-      console.log(err);
-      return err;
-    });
+      if(result.pageState) {
+        res.nextPageToken = result.pageState
+      }
+      return res
+    })
+  }
+  getVideo(id: string, fields?: string[], noSnippet?: boolean): Promise<Video> {
+    const sql = `select ${buildFields(fields, this.videoFields)} from video where id = ?`;
+    return queryOne(this.client, sql, [id], this.videoMap);
+  }
+  getVideos(ids: string[], fields?: string[], noSnippet?: boolean): Promise<Video[]> {
+    if (!ids || ids.length <= 0) {
+      return Promise.resolve([]);
+    } else {
+      const ps = params(ids.length);
+      const s = `select ${buildFields(fields, this.videoFields)} from video where id in (${ps.join(',')})`;
+      return query<Video>(this.client, s, ids).then(r => {
+        return mapArray(r, this.videoMap);
+      });
+    }
   }
   getPlaylistVideos(playlistId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>> {
-    const limit = getLimit(max);
-    const skip = getSkipNumber(nextPageToken);
+    const options = getOption(nextPageToken, max);
     const query0 = `select videos from playlistVideo where id = ? `;
     return this.client.execute(query0, [playlistId], { prepare: true }).then(playlist => {
-      let checkNext = false;
-      if (skip + limit === playlist.rows[0].videos.length) {
-        checkNext = true;
-      }
-      const ids = playlist.rows[0].videos.slice(skip, skip + limit);
+      const ids = playlist.rows[0].videos;
       const queryQuestion = [];
       ids.forEach(() => {
         queryQuestion.push('?');
       });
       const query1 = `select ${buildFields(fields, this.videoFields)} from video where id in (${queryQuestion.join()})`;
-      return this.client.execute(query1, ids, { prepare: true }).then(result => {
-        return handleResults(result.rows, this.videoMap);
+      return this.client.execute(query1, ids, options).then(result => {
+        const res : ListResult<PlaylistVideo> = {
+          list: handleResults(result.rows as any, this.videoMap),
+          total :  playlist.rows[0].videos.length,
+        };
+        if(result.pageState) {
+          res.nextPageToken = result.pageState
+        }
+        return res
       });
-    }).catch(err => {
-      return err;
-    });
+    })
   }
-  search(sm: ItemSM, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
-    const limit = getLimit(max);
-    const options = getOption(nextPageToken, limit);
-    const objQuery = buildSearchQuery(sm, 'video', 'video_index', fields, this.videoFields);
-    return this.client.execute(objQuery.query, undefined, options ).then(result => {
-      return {
-        list: mapArray(result.rows, this.videoMap),
-        nextPageToken: result.pageState,
-      };
-    }).catch((err) => {
-      console.log(err);
-      return err;
-    });
-  }
-  searchVideos(sm: ItemSM, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
-    const limit = getLimit(max);
-    const options = getOption(nextPageToken, limit);
-    const objQuery = buildSearchQuery(sm, 'video', 'video_index', fields, this.videoFields);
-    return this.client.execute(objQuery.query, undefined, options ).then(result => {
-      return {
-        list: mapArray(result.rows, this.videoMap),
-        nextPageToken: result.pageState,
-      };
-    }).catch((err) => {
-      console.log(err);
-      return err;
-    });
-  }
-  searchPlaylists(sm: PlaylistSM, max?: number, nextPageToken?: string , fields?: string[]): Promise<ListResult<Playlist>> {
+  getChannelVideos(channelId: string, max: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>> {
     max = getLimit(max);
     const options = getOption(nextPageToken, max);
-    const objQuery = buildSearchQuery(sm, ' playlist', 'playlist_index', fields, this.playlistFields);
-    return this.client.execute(objQuery.query, undefined, options ).then(result => {
-      return {
-        list: mapArray(result.rows, this.playlistMap),
-        nextPageToken:  result.pageState,
-      };
-    }).catch((err) => {
-      console.log(err);
-      return err;
-    });
-  }
-  searchChannels(sm: ChannelSM, max?: number, nextPageToken?: string , fields?: string[]): Promise<ListResult<Channel>> {
-    max = getLimit(max);
-    const options = getOption(nextPageToken, max);
-    const objQuery = buildSearchQuery(sm, 'channel', 'channel_index', fields, this.channelFields);
-    return this.client.execute(objQuery.query, undefined, options ).then(result => {
-      return {
-        list: mapArray(result.rows, this.channelMap),
-        nextPageToken: result.pageState,
-      };
-    }).catch((err) => {
-      console.log(err);
-      return err;
-    });
-  }
-  getRelatedVideos(videoId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
-    max = getLimit(max);
-    const options = getOption(nextPageToken, max);
-    return this.getVideo(videoId).then(video => {
-      if (!video) {
-        const r: ListResult<Item> = { list: [] };
-        return Promise.resolve(r);
-      } else {
-        const should = video.tags.map(item => ({type: 'contains', field: 'tags', values: item}));
-        const not = [{type: 'match', field: 'id', value: videoId}];
-        const sort = [{field: `publishedat`, reverse: true}];
-        const queryObj = `{filter: [{should:${JSON.stringify(should)}} ${not.length > 0 ? `,{not:${JSON.stringify(not)}}` : ''}] ${sort.length > 0 ? `,sort: ${JSON.stringify(sort)}` : ''}}`;
-        const sql = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
-        return this.client.execute(sql, undefined, options ).then(result => {
-          return {
-            list: mapArray(result.rows, this.videoMap),
-            nextPageToken: result.pageState,
-          };
-        }).catch((err) => {
-          console.log(err);
-          return err;
-        });
-      }
-    });
-  }
-  getPopularVideos(regionCode?: string, videoCategoryId?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
-    max = getLimit(max);
-    const options = getOption(nextPageToken, max);
-    const sort = [{field: `publishedat`, reverse: true}];
-    const queryObj = `{${sort.length > 0 ? `sort: ${JSON.stringify(sort)}` : ''}}`;
-    const sql = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
-    return this.client.execute(sql, undefined, options ).then(result => {
-      return {
-        list: mapArray(result.rows, this.videoMap),
-        nextPageToken: result.pageState,
-      };
-    }).catch((err) => {
-        console.log(err);
-        return err;
-    });
-  }
-  getPopularVideosByCategory(videoCategoryId?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
-    max = getLimit(max);
-    const options = getOption(nextPageToken, max);
-    const should = [{type: 'match', field: 'categoryid', value: videoCategoryId}];
+    const should = [{type: 'match', field: 'channelid', value: channelId}];
     const sort = [{field: `publishedat`, reverse: true}];
     const queryObj = `{filter: [{should:${JSON.stringify(should)}}] ${sort.length > 0 ? `,sort: ${JSON.stringify(sort)}` : ''}}`;
-    const sql = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
-    return this.client.execute(sql, undefined, options ).then(result => {
-      return {
-        list: mapArray(result.rows, this.videoMap),
-        nextPageToken: result.pageState,
-      };
-    }).catch((err) => {
-      console.log(err);
-      return err;
-    });
-  }
-  getPopularVideosByRegion(regionCode?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
-    max = getLimit(max);
-    const options = getOption(nextPageToken, max);
-    const sort = [{field: `publishedat`, reverse: true}];
-    const not = [{type: 'contains', field: 'blockedregions', values: [regionCode]}];
-    let a: any;
-    if (regionCode) {
-      a = {
-        filter: {
-          not,
-        },
-        sort
-      };
-    } else {
-      a = { sort };
-    }
-    const queryObj = JSON.stringify(a);
     const sql = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
     return this.client.execute(sql, undefined, options ).then(result => {
       return {
@@ -290,39 +165,113 @@ export class CassandraVideoService implements VideoService {
       return err;
     });
   }
-  getChannelVideos(channelId: string, max: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>> {
+  search(sm: ItemSM, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
+    const limit = getLimit(max);
+    const options = getOption(nextPageToken, limit);
+    const objQuery = buildVideoQuery(sm, 'video', 'video_index', fields, this.videoFields);
+    return this.client.execute(objQuery, undefined, options ).then(result => {
+      const res : ListResult<Item> = {
+        list: handleResults(result.rows as any, this.videoMap),
+      };
+      if(result.pageState) {
+        res.nextPageToken = result.pageState
+      }
+      return res
+    })
+  }
+  searchVideos(sm: ItemSM, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
+    const limit = getLimit(max);
+    const options = getOption(nextPageToken, limit);
+    const objQuery = buildVideoQuery(sm, 'video', 'video_index', fields, this.videoFields);
+    return this.client.execute(objQuery, undefined, options ).then(result => {
+      const res : ListResult<Item> = {
+        list: handleResults(result.rows as any, this.videoMap),
+      };
+      if(result.pageState) {
+        res.nextPageToken = result.pageState
+      }
+      return res
+    })
+  }
+  searchPlaylists(sm: PlaylistSM, max?: number, nextPageToken?: string , fields?: string[]): Promise<ListResult<Playlist>> {
     max = getLimit(max);
     const options = getOption(nextPageToken, max);
-    const should = [{type: 'match', field: 'channelid', value: channelId}];
-    const sort = [{field: `publishedat`, reverse: true}];
-    const queryObj = `{filter: [{should:${JSON.stringify(should)}}] ${sort.length > 0 ? `,sort: ${JSON.stringify(sort)}` : ''}}`;
-    const sql = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
-    return this.client.execute(sql, undefined, options ).then(result => {
-      return {
-        list: mapArray(result.rows, this.videoMap),
-        nextPageToken: result.pageState,
+    const objQuery = buildPlaylistQuery(sm, ' playlist', fields, this.playlistFields);
+    return this.client.execute(objQuery, undefined, options ).then(result => {
+      const res : ListResult<Playlist> = {
+        list: mapArray(result.rows as any, this.playlistMap),
       };
-    }).catch((err) => {
-      console.log(err);
-      return err;
+      if(result.pageState) {
+        res.nextPageToken = result.pageState
+      }
+      return res
+    })
+  }
+  searchChannels(sm: ChannelSM, max?: number, nextPageToken?: string , fields?: string[]): Promise<ListResult<Channel>> {
+    max = getLimit(max);
+    const options = getOption(nextPageToken, max);
+    const objQuery = buildChannelQuery(sm, 'channel', fields, this.channelFields);
+    return this.client.execute(objQuery, undefined, options ).then(result => {
+      const res : ListResult<Channel> = {
+        list: mapArray(result.rows as any, this.playlistMap),
+      };
+      if(result.pageState) {
+        res.nextPageToken = result.pageState
+      }
+      return res
+    })
+  }
+  getRelatedVideos(videoId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
+    max = getLimit(max);
+    const options = getOption(nextPageToken, max);
+    return this.getVideo(videoId).then(video => {
+      if (!video) {
+        const r: ListResult<Item> = { list: [] };
+        return Promise.resolve(r);
+      } else {
+        const should = video.tags.map(item => ({type: 'contains', field: 'tags', values: item}));
+        const not = [{type: 'match', field: 'id', value: videoId}];
+        const sort = [{field: `publishedat`, reverse: true}];
+        const queryObj = `{filter: [{should:${JSON.stringify(should)}} ${not.length > 0 ? `,{not:${JSON.stringify(not)}}` : ''}] ${sort.length > 0 ? `,sort: ${JSON.stringify(sort)}` : ''}}`;
+        const sql = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
+        return this.client.execute(sql, undefined, options ).then(result => {
+          const res : ListResult<Item> = {
+            list: handleResults(result.rows as any, this.videoMap),
+          };
+          if(result.pageState) {
+            res.nextPageToken = result.pageState
+          }
+          return res
+        })
+      }
     });
   }
-}
-
-export function getSkipNumber(nextPageToken: string): number {
-  if (nextPageToken) {
-    const arr = nextPageToken.toString().split('|');
-    if (arr.length < 2) {
-      return undefined;
+  getPopularVideos(regionCode?: string, categoryId?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
+    max = getLimit(max);
+    const options = getOption(nextPageToken, max);
+    const not = []
+    const query = []
+    if (regionCode && regionCode.length > 0) {
+      not.push({type: 'contains', field: 'blockedregions', values: [regionCode]})
     }
-    if (isNaN(arr[1] as any)) {
-      return 0;
+    if (categoryId && categoryId.length > 0) {
+      query.push({type: 'match', field: 'categoryId', values: categoryId})
     }
-    const n = parseFloat(arr[1]);
-    const s = n.toFixed(0);
-    return parseFloat(s);
+    const sort = [{field: `publishedat`, reverse: true}];
+    const queryObj = {filter:{ not }, query, sort};
+    if(not.length <= 0) { delete queryObj.filter;} 
+    if(query.length <= 0) { delete queryObj.filter;} 
+    const sql = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
+    return this.client.execute(sql, undefined, options ).then(result => {
+      const res : ListResult<Video> = {
+        list: handleResults(result.rows as any, this.videoMap),
+      };
+      if(result.pageState) {
+        res.nextPageToken = result.pageState
+      }
+      return res
+    })
   }
-  return 0;
 }
 export function getOption(nextPageToken: string, max?: number): QueryOptions {
   let options: QueryOptions ;
@@ -333,16 +282,13 @@ export function getOption(nextPageToken: string, max?: number): QueryOptions {
   }
   return options;
 }
-export function buildSearchQuery(s: any , tableName: string, index: string, fields?: string[], mapFields?: string[]): any {
-  const arrayKeys = Object.keys(s);
-  const arrayValues = Object.values(s);
+export function buildPlaylistQuery(s: PlaylistSM, tableName: string, fields?: string[], mapFields?: string[]): string {
   const should = [];
   const must = [];
   const not = [];
   const sort = [];
-  arrayKeys.forEach((key, i) => {
-    if (key === 'q') {
-      should.push({type: 'phrase', field: 'title', value: `${s.q}`});
+  if (!isEmpty(s.q)) {
+    should.push({type: 'phrase', field: 'title', value: `${s.q}`});
       should.push({type: 'prefix', field: 'title', value: `${s.q}`});
       should.push({type: 'wildcard', field: 'title', value: `*${s.q}`});
       should.push({type: 'wildcard', field: 'title', value: `${s.q}*`});
@@ -352,46 +298,175 @@ export function buildSearchQuery(s: any , tableName: string, index: string, fiel
       should.push({type: 'wildcard', field: 'description', value: `*${s.q}`});
       should.push({type: 'wildcard', field: 'description', value: `${s.q}*`});
       should.push({type: 'wildcard', field: 'description', value: `*${s.q}*`});
-    } else if (key === 'duration') {
-      switch (s.videoDuration) {
-        case 'short':
-          must.push({type: 'range', field: 'duration', lower: '0', upper: '240'});
-          break;
-        case 'medium':
-          must.push({type: 'range', field: 'duration', lower: '240', upper: '1200'});
-          break;
-        case 'long':
-          must.push({type: 'range', field: 'duration', lower: '1200'});
-          break;
-        default:
-          break;
-      }
-    } else if (key === 'publishedAfter' || key === 'publishedBefore') {
-      if (s.publishedBefore && s.publishedAfter) {
-        must.push({type: 'range', field: 'publishedat', lower: s.publishedBefore.toISOString().replace('T', ' '), upper: s.publishedAfter.toISOString().replace('T', ' ')});
-      } else if ( s.publishedAfter) {
-        must.push({type: 'range', field: 'publishedat', upper: s.publishedAfter.toISOString().replace('T', ' ')});
-      } else if (s.publishedBefore) {
-        must.push({type: 'range', field: 'publishedat', lower: s.publishedBefore.toISOString().replace('T', ' ')});
-      }
-    } else if (key === 'regionCode') {
-      if (!isEmpty(s.regionCode)) {
-        not.push({type: 'contains', field: 'blockedregions', values: [s.regionCode]});
-      }
-    } else if (key === 'sort') {
-      if ( s.sort) {
-        sort.push({field: `${s.sort.toLowerCase()}`, reverse: true});
-      }
-    } else if (key === 'channelId') {
-      if ( arrayValues[i]) {
-        tableName === 'channel' ? must.push({type: 'match', field: 'id', value: `${arrayValues[i]}`}) : must.push({type: 'match', field: `${key.toLowerCase()}`, value: `${arrayValues[i]}`});
-      }
-    } else {
-      if (arrayValues[i]) {
-       must.push({type: 'match', field: `${key.toLowerCase()}`, value: `${arrayValues[i]}`});
-      }
+  }
+  if (s.publishedBefore && s.publishedAfter) {
+    must.push({type: 'range', field: 'publishedat', lower: s.publishedBefore.toISOString().replace('T', ' '), upper: s.publishedAfter.toISOString().replace('T', ' ')});
+  } else if ( s.publishedAfter) {
+    must.push({type: 'range', field: 'publishedat', upper: s.publishedAfter.toISOString().replace('T', ' ')});
+  } else if (s.publishedBefore) {
+    must.push({type: 'range', field: 'publishedat', lower: s.publishedBefore.toISOString().replace('T', ' ')});
+  }
+  if (!isEmpty(s.channelId)) {
+    must.push({type: 'match', field: `channelid`, value: `${s.channelId}`})
+  }
+  if (!isEmpty(s.channelType)) {
+    must.push({type: 'match', field: `channeltype`, value: `${s.channelType}`})
+  }
+  if (!isEmpty(s.regionCode)) {
+    must.push({type: 'match', field: `country`, value: `${s.regionCode}`})
+
+  }
+  if (!isEmpty(s.relevanceLanguage)) {
+    must.push({type: 'match', field: `relevancelanguage`, value: `${s.relevanceLanguage}`})
+  }
+
+  if (!isEmpty(s.sort)){
+    sort.push({field: `${s.sort.toLowerCase()}`, reverse: true});
+  }
+  const a = {
+    filter: {
+      should,
+      not,
+    },
+    query: {must},
+    sort
+  };
+  if (should.length === 0 && not.length === 0){
+    delete a.filter
+  }else{
+    if (should.length === 0) {
+      delete a.filter.should;
     }
-  });
+    if (not.length === 0) {
+      delete a.filter.not;
+    }
+  }
+  if (must.length === 0) {
+    delete a.query;
+  }
+  if (sort.length === 0) {
+    delete a.sort;
+  }
+  const queryObj = JSON.stringify(a);
+  const sql = `select ${buildFields(fields, mapFields)} from ${tableName} where expr(playlist_index,'${queryObj}')`;
+  return sql
+}
+export function buildChannelQuery(s: ChannelSM, tableName: string, fields?: string[], mapFields?: string[]): string {
+  const should = [];
+  const must = [];
+  const not = [];
+  const sort = [];
+  if (!isEmpty(s.q)) {
+    should.push({type: 'phrase', field: 'title', value: `${s.q}`});
+      should.push({type: 'prefix', field: 'title', value: `${s.q}`});
+      should.push({type: 'wildcard', field: 'title', value: `*${s.q}`});
+      should.push({type: 'wildcard', field: 'title', value: `${s.q}*`});
+      should.push({type: 'wildcard', field: 'title', value: `*${s.q}*`});
+      should.push({type: 'phrase', field: 'description', value: `${s.q}`});
+      should.push({type: 'prefix', field: 'description', value: `${s.q}`});
+      should.push({type: 'wildcard', field: 'description', value: `*${s.q}`});
+      should.push({type: 'wildcard', field: 'description', value: `${s.q}*`});
+      should.push({type: 'wildcard', field: 'description', value: `*${s.q}*`});
+  }
+  if (s.publishedBefore && s.publishedAfter) {
+    must.push({type: 'range', field: 'publishedat', lower: s.publishedBefore.toISOString().replace('T', ' '), upper: s.publishedAfter.toISOString().replace('T', ' ')});
+  } else if ( s.publishedAfter) {
+    must.push({type: 'range', field: 'publishedat', upper: s.publishedAfter.toISOString().replace('T', ' ')});
+  } else if (s.publishedBefore) {
+    must.push({type: 'range', field: 'publishedat', lower: s.publishedBefore.toISOString().replace('T', ' ')});
+  }
+  if (!isEmpty(s.channelId)) {
+    must.push({type: 'match', field: `id`, value: `${s.channelId}`})
+  }
+  if (!isEmpty(s.channelType)) {
+    must.push({type: 'match', field: `channeltype`, value: `${s.channelType}`})
+  }
+  if (!isEmpty(s.topicId)) {
+    must.push({type: 'match', field: `topicid`, value: `${s.topicId}`})
+  }
+  if (!isEmpty(s.regionCode)) {
+    must.push({type: 'match', field: `country`, value: `${s.regionCode}`})
+
+  }
+  if (!isEmpty(s.relevanceLanguage)) {
+    must.push({type: 'match', field: `relevancelanguage`, value: `${s.relevanceLanguage}`})
+  }
+  if (!isEmpty(s.sort)){
+    sort.push({field: `${s.sort.toLowerCase()}`, reverse: true});
+  }
+  const a = {
+    filter: {
+      should,
+      not,
+    },
+    query: {must},
+    sort
+  };
+  if (should.length === 0 && not.length === 0){
+    delete a.filter
+  }else{
+    if (should.length === 0) {
+      delete a.filter.should;
+    }
+    if (not.length === 0) {
+      delete a.filter.not;
+    }
+  }
+  if (must.length === 0) {
+    delete a.query;
+  }
+  if (sort.length === 0) {
+    delete a.sort;
+  }
+  const queryObj = JSON.stringify(a);
+  const sql = `select ${buildFields(fields, mapFields)} from ${tableName} where expr(channel_index,'${queryObj}')`;
+  return sql
+}
+export function buildVideoQuery(s: ItemSM , tableName: string, index: string, fields?: string[], mapFields?: string[]): string {
+  const should = [];
+  const must = [];
+  const not = [];
+  const sort = [];
+  if (!isEmpty(s.duration)) {
+    switch (s.duration) {
+      case 'short':
+        must.push({type: 'range', field: 'duration', upper: '240'});
+        break;
+      case 'medium':
+        must.push({type: 'range', field: 'duration', lower: '240', upper: '1200'});
+        break;
+      case 'long':
+        must.push({type: 'range', field: 'duration', lower: '1200'});
+        break;
+      default:
+        break;
+    }
+  }
+  if (!isEmpty(s.q)) {
+    should.push({type: 'phrase', field: 'title', value: `${s.q}`});
+      should.push({type: 'prefix', field: 'title', value: `${s.q}`});
+      should.push({type: 'wildcard', field: 'title', value: `*${s.q}`});
+      should.push({type: 'wildcard', field: 'title', value: `${s.q}*`});
+      should.push({type: 'wildcard', field: 'title', value: `*${s.q}*`});
+      should.push({type: 'phrase', field: 'description', value: `${s.q}`});
+      should.push({type: 'prefix', field: 'description', value: `${s.q}`});
+      should.push({type: 'wildcard', field: 'description', value: `*${s.q}`});
+      should.push({type: 'wildcard', field: 'description', value: `${s.q}*`});
+      should.push({type: 'wildcard', field: 'description', value: `*${s.q}*`});
+  }
+  if (s.publishedBefore && s.publishedAfter) {
+    must.push({type: 'range', field: 'publishedat', lower: s.publishedBefore.toISOString().replace('T', ' '), upper: s.publishedAfter.toISOString().replace('T', ' ')});
+  } else if ( s.publishedAfter) {
+    must.push({type: 'range', field: 'publishedat', upper: s.publishedAfter.toISOString().replace('T', ' ')});
+  } else if (s.publishedBefore) {
+    must.push({type: 'range', field: 'publishedat', lower: s.publishedBefore.toISOString().replace('T', ' ')});
+  }
+  if (!isEmpty(s.regionCode)) {
+    not.push({type: 'contains', field: 'blockedregions', values: [s.regionCode]});
+  }
+  if (!isEmpty(s.sort)){
+    sort.push({field: `${s.sort.toLowerCase()}`, reverse: true});
+  }
   const a = {
     filter: {
       should,
@@ -400,22 +475,23 @@ export function buildSearchQuery(s: any , tableName: string, index: string, fiel
     query: must,
     sort
   };
-  if (should.length === 0) {
-    delete a.filter.should;
+  if (should.length === 0 && not.length === 0){
+    delete a.filter
+  }else{
+    if (should.length === 0) {
+      delete a.filter.should;
+    }
+    if (not.length === 0) {
+      delete a.filter.not;
+    }
   }
   if (must.length === 0) {
     delete a.query;
-  }
-  if (not.length === 0) {
-    delete a.filter.not;
   }
   if (sort.length === 0) {
     delete a.sort;
   }
   const queryObj = JSON.stringify(a);
   const sql = `select ${buildFields(fields, mapFields)} from ${tableName} where expr(${index}, '${queryObj}')`;
-  return {
-    query: sql,
-    params: queryObj,
-  };
+  return  sql
 }
