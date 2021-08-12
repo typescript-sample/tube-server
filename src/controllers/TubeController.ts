@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { BigThumbnail, ChannelSM, Duration, ItemSM, ListResult, PlaylistSM, SortType, Thumbnail, VideoService } from 'video-service';
+import { BigThumbnail, ChannelSM, Duration, ItemSM, ListResult, PlaylistSM, SortType, Thumbnail, VideoService } from '../../video-services';
 import { handleError, param, query, queryDate, queryNumber, queryParam, queryParams, queryRequiredParams, respondModel } from './util';
 
 export class TubeController {
@@ -21,6 +21,7 @@ export class TubeController {
     this.searchChannels = this.searchChannels.bind(this);
     this.getRelatedVideos = this.getRelatedVideos.bind(this);
     this.getPopularVideos = this.getPopularVideos.bind(this);
+    this.getSubscriptions = this.getSubscriptions.bind(this);
   }
   getCategories(req: Request, res: Response) {
     const regionCode = queryParam(req, res, 'regionCode');
@@ -31,8 +32,17 @@ export class TubeController {
         .catch(err => handleError(err, res, this.log));
     }
   }
+  async getSubscriptions(req: Request, res: Response) {
+    const channelId = param(req, res, 'id');
+    if(channelId){
+      this.videoService
+        .getSubscriptions(channelId)
+        .then(results => res.status(200).json(results))
+        .catch(err => handleError(err, res, this.log));
+    }
+  }
   getChannel(req: Request, res: Response) {
-    const id = param(req, res, 'id');    
+    const id = param(req, res, 'id');
     if (id) {
       const fields = queryParams(req, 'fields');
       this.videoService

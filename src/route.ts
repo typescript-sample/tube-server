@@ -7,9 +7,9 @@ export function route(app: Application, ctx: ApplicationContext): void {
 
   app.post('/tube/channels', sync.syncChannel);
   app.post('/tube/playlists', sync.syncPlaylist);
-  app.get('/tube/subscriptions/:id', sync.getSubscriptions);
-
+  
   app.get('/tube/category', tube.getCategories);
+  app.get('/tube/channels/subscriptions/:id', tube.getSubscriptions);
   app.get('/tube/channels/search', tube.searchChannels);
   app.get('/tube/channels/list', tube.getChannels);
   app.get('/tube/channels/:id', tube.getChannel);

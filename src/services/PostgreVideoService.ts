@@ -1,6 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import { buildFields, exec, getMapField, isEmpty, metadata, params, query, queryOne, Statement } from 'postgre';
-import { Channel, channelModel, ChannelSM, Item, ItemSM, ListResult, Playlist, playlistModel, PlaylistSM, PlaylistVideo, StringMap, Video, VideoCategory, videoModel, VideoService } from 'video-service';
+import { Channel, channelModel, ChannelSM, Item, ItemSM, ListResult, Playlist, playlistModel, PlaylistSM, PlaylistVideo, StringMap, Video, VideoCategory, videoModel, VideoService } from '../../video-services';
 
 export interface CategoryCollection {
   id: string;
@@ -31,7 +31,23 @@ export class PostgreTubeService implements VideoService {
       return Promise.resolve(null);
     }
     const q = `select ${buildFields(fields, this.channelFields)} from channel where id = $1`;
-    return queryOne<Channel>(this.client, q, [id], this.channelMap);
+    return queryOne<Channel>(this.client, q, [id], this.channelMap).then((r)=>{
+      const ids = r.channels;
+      if(!ids || ids.length === 0){
+        delete r['channels'];
+        return r;
+      }else{
+        return this.getChannels(ids as any).then((r2)=>{
+          if(!r2 || r2.length === 0){
+            delete r['channels'];
+            return r;
+          }else{
+            r.channels = r2;
+            return r;
+          }
+        })
+      }
+    });
   }
   getChannels(ids: string[], fields?: string[]): Promise<Channel[]> {
     if (!ids || ids.length === 0) {
@@ -123,6 +139,12 @@ export class PostgreTubeService implements VideoService {
       }
     });
   }
+  getSubscriptions(channelId: string): Promise<string[]>{
+    const q = `select channels from channel where id = $1`;
+    return queryOne<Channel>(this.client, q, [channelId])
+      .then(result => result.channels)
+      .catch(err =>  err);
+  }
   search(itemSM: ItemSM, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
     limit = getLimit(limit);
     const skip = getSkip(nextPageToken);
@@ -133,10 +155,9 @@ export class PostgreTubeService implements VideoService {
     };
     itemSM.sort = itemSM.sort ? getMapField(itemSM.sort, map) as any : undefined;
     const q = buildVideoQuery(itemSM, fields);
-    return query<Item>(this.client, q.query, q.args.concat([limit, skip]), this.videoMap).then(results => {
+    return query<Item>(this.client, q.query, q.params.concat([limit, skip]), this.videoMap).then(results => {
       return { list : results, nextPageToken: getNextPageToken(results, limit, skip)};
     }).catch(e => {
-      console.log(e);
       return e;
     });
   }
@@ -151,11 +172,10 @@ export class PostgreTubeService implements VideoService {
     itemSM.sort = itemSM.sort ? getMapField(itemSM.sort, map) as any : undefined;
     const sql = buildVideoQuery(itemSM, fields, this.videoFields);
     sql.query = sql.query + ` limit ${limit} offset ${skip}`;
-    return query<Item>(this.client, sql.query, sql.args, this.videoMap).then(results => {
+    return query<Item>(this.client, sql.query, sql.params, this.videoMap).then(results => {
       return { list : results, nextPageToken: getNextPageToken(results, limit, skip) };
     })
     .catch(e => {
-      console.log(e);
       return e;
     });
   }
@@ -170,7 +190,7 @@ export class PostgreTubeService implements VideoService {
     playlistSM.sort = playlistSM.sort ? getMapField(playlistSM.sort, map) as any : undefined;
     const sql = buildPlaylistQuery(playlistSM, fields, this.playlistFields);
     sql.query = sql.query + ` limit ${limit} offset ${skip}`;
-    return query<Playlist>(this.client, sql.query, sql.args, this.playlistMap).then(results => {
+    return query<Playlist>(this.client, sql.query, sql.params, this.playlistMap).then(results => {
       return { list : results, nextPageToken: getNextPageToken(results, limit, skip) };
     });
   }
@@ -186,7 +206,7 @@ export class PostgreTubeService implements VideoService {
     channelSM.sort = channelSM.sort ? getMapField(channelSM.sort, map) as any : undefined;
     const sql = buildChannelQuery(channelSM, fields, this.channelFields);
     sql.query = sql.query + ` limit ${limit} offset ${skip}`;
-    return query<Channel>(this.client, sql.query, sql.args, this.channelMap).then(results => {
+    return query<Channel>(this.client, sql.query, sql.params, this.channelMap).then(results => {
       return { list : results, nextPageToken: getNextPageToken(results, limit, skip) };
     });
   }
@@ -270,18 +290,18 @@ export function getSkip(nextPageToken: string): number {
 export function buildVideoQuery(s: ItemSM, fields?: string[], videoFields?: string[]): Statement {
   let sql = `select ${buildFields(fields, videoFields)} from video`;
   const condition = [];
-  const args = [];
+  const params = [];
   let i = 1;
   if (s.publishedAfter) {
-    args.push(s.publishedAfter);
+    params.push(s.publishedAfter);
     condition.push(`(publishedAt <= $${i++})`);
   }
   if (s.publishedBefore) {
-    args.push(s.publishedBefore);
+    params.push(s.publishedBefore);
     condition.push(`(publishedAt > $${i++})`);
   }
   if (!isEmpty(s.regionCode)) {
-    args.push(s.regionCode);
+    params.push(s.regionCode);
     condition.push(`(blockedRegions is null or $${i++} != all(blockedRegions))`);
   }
   if (!isEmpty(s.duration)) {
@@ -302,8 +322,8 @@ export function buildVideoQuery(s: ItemSM, fields?: string[], videoFields?: stri
   if (!isEmpty(s.q)) {
     const q = `%${s.q}%`;
     condition.push(`(title ilike $${i++} or description ilike $${i++})`);
-    args.push(q);
-    args.push(q);
+    params.push(q);
+    params.push(q);
   }
   if (condition.length > 0) {
     const cond = condition.join(' and ');
@@ -312,35 +332,35 @@ export function buildVideoQuery(s: ItemSM, fields?: string[], videoFields?: stri
   if (s.sort && s.sort.length > 0) {
     sql += ` order by ${s.sort} desc`;
   }
-  return { query: sql, args };
+  return { query: sql, params };
 }
 export function buildPlaylistQuery(s: PlaylistSM, fields?: string[], playlistFields?: string[]): Statement {
   let sql = `select ${buildFields(fields, playlistFields)} from playlist`;
   const condition = [];
-  const args = [];
+  const params = [];
   let i = 1;
   if (!isEmpty(s.channelId)) {
-    args.push(s.channelId);
+    params.push(s.channelId);
     condition.push(`channelId = $${i++}`);
   }
   if (s.publishedAfter) {
-    args.push(s.publishedAfter);
+    params.push(s.publishedAfter);
     condition.push(`publishedAt <= $${i++}`);
   }
   if (s.publishedBefore) {
-    args.push(s.publishedBefore);
+    params.push(s.publishedBefore);
     condition.push(`publishedAt > $${i++}`);
   }
   if (!isEmpty(s.q)) {
     const q = `%${s.q}%`;
     condition.push(`(title ilike $${i++} or description ilike $${i++})`);
-    args.push(q);
-    args.push(q);
+    params.push(q);
+    params.push(q);
   }
   // if (!isEmpty(s.channelType)) {
   //   // query.channelType = s.channelType;
-  //   args.push(s.channelId);
-  //   condition.push(`(channeld = $${args.length})`)
+  //   params.push(s.channelId);
+  //   condition.push(`(channeld = $${params.length})`)
   // }
   // if (!isEmpty(s.regionCode)) {
   //   query.country = s.regionCode;
@@ -355,34 +375,34 @@ export function buildPlaylistQuery(s: PlaylistSM, fields?: string[], playlistFie
   if (s.sort && s.sort.length > 0) {
     sql += ` order by ${s.sort} desc`;
   }
-  return { query: sql, args };
+  return { query: sql, params };
 }
 export function buildChannelQuery(s: ChannelSM, fields?: string[], channelFields?: string[]): Statement {
   let sql = `select ${buildFields(fields, channelFields)} from channel`;
   const condition = [];
-  const args = [];
+  const params = [];
   let i = 1;
   if (!isEmpty(s.channelId)) {
-    args.push(s.channelId);
+    params.push(s.channelId);
     condition.push(`id = $${i++}`);
   }
   if (!isEmpty(s.regionCode)) {
-    args.push(s.regionCode);
+    params.push(s.regionCode);
     condition.push(`country = $${i++}`);
   }
   if (s.publishedAfter) {
-    args.push(s.publishedAfter);
+    params.push(s.publishedAfter);
     condition.push(`publishedAt <= $${i++}`);
   }
   if (s.publishedBefore) {
-    args.push(s.publishedBefore);
+    params.push(s.publishedBefore);
     condition.push(`publishedAt > $${i++}`);
   }
   if (!isEmpty(s.q)) {
     const q = `%${s.q}%`;
     condition.push(`(title ilike $${i++} or description ilike $${i++})`);
-    args.push(q);
-    args.push(q);
+    params.push(q);
+    params.push(q);
   }
   // if (!isEmpty(s.channelType)) {
   //   query.channelType = s.channelType;
@@ -400,5 +420,5 @@ export function buildChannelQuery(s: ChannelSM, fields?: string[], channelFields
   if (s.sort && s.sort.length > 0) {
     sql += ` order by ${s.sort} desc`;
   }
-  return { query: sql, args };
+  return { query: sql, params };
 }
