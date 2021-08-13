@@ -126,20 +126,18 @@ export class CassandraVideoService implements VideoService {
     const queryObj = `{filter: [{should:${JSON.stringify(should)}}] ${sort.length > 0 ? `,sort: ${JSON.stringify(sort)}` : ''}}`;
     const sql = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
     return this.client.execute(sql, undefined, options ).then(result => {
-      return {
-        list: mapArray(result.rows, this.videoMap),
+      const res: ListResult<PlaylistVideo> = {
+        list: mapArray<PlaylistVideo>(result.rows as any, this.videoMap),
         nextPageToken: result.pageState,
       };
-    }).catch((err) => {
-      console.log(err);
-      return err;
-    });
+      return res
+    })
   }
   getCagetories(regionCode: string): Promise<VideoCategory[]> {
     const query0 = `select * from category where id = ?`;
     return this.client.execute(query0, [regionCode], {prepare: true}).then(category => {
       if (category.rows[0]) {
-        return category.rows[0];
+        return Promise.resolve([]);
       } else {
         return this.categoryClient.getCagetories(regionCode).then(async (r) => {
           const categoryToSave: VideoCategory[] = r.filter((item) => item.assignable === true);
@@ -153,17 +151,11 @@ export class CassandraVideoService implements VideoService {
             params: newCategoryCollection
           };
           return this.client.batch([queries], { prepare: true }).then(() => {
-            return newCategoryCollection;
-          }).catch((err) => {
-            console.log(err);
-            return err;
-          });
+            return categoryToSave;
+          })
         });
       }
-    }).catch(err => {
-      console.log(err);
-      return err;
-    });
+    })
   }
   search(sm: ItemSM, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
     const limit = getLimit(max);

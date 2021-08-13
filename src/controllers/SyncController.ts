@@ -3,7 +3,7 @@ import { SyncService } from '../../video-services';
 import { handleError } from './util';
 
 export class SyncController {
-  constructor(private service: SyncService, private log: (msg: any, ctx?: any) => void) {
+  constructor(private service: SyncService, private log?: (msg: any, ctx?: any) => void) {
     this.syncChannel = this.syncChannel.bind(this);
     this.syncPlaylist = this.syncPlaylist.bind(this);
   }
