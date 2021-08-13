@@ -39,7 +39,7 @@ export class CassandraVideoService implements VideoService {
       const ps = params(channelIds.length);
       const s = `select ${buildFields(fields, this.channelFields)} from channel where id in (${ps.join(',')})`;
       return query<Channel>(this.client, s, channelIds).then(r => {
-        return mapArray(r,this.channelMap);
+        return mapArray(r, this.channelMap);
       });
     }
   }
@@ -50,7 +50,7 @@ export class CassandraVideoService implements VideoService {
       const ps = params(ids.length);
       const s = `select ${buildFields(fields, this.playlistFields)} from playlist where id in (${ps.join(',')})`;
       return query<Playlist>(this.client, s, ids).then(r => {
-        return mapArray(r,this.playlistMap);;
+        return mapArray(r, this.playlistMap);
       });
     }
   }
@@ -72,20 +72,20 @@ export class CassandraVideoService implements VideoService {
     const queryObj = JSON.stringify(a);
     const sql = `select ${buildFields(fields, this.videoFields)} from playlist where expr(playlist_index, '${queryObj}')`;
     return this.client.execute(sql, undefined, options ).then(result => {
-      const res : ListResult<Playlist> = {
+      const res: ListResult<Playlist> = {
         list: mapArray(result.rows as any, this.playlistMap),
       };
-      if(result.pageState) {
-        res.nextPageToken = result.pageState
+      if (result.pageState) {
+        res.nextPageToken = result.pageState;
       }
-      return res
-    })
+      return res;
+    });
   }
-  getVideo(id: string, fields?: string[], noSnippet?: boolean): Promise<Video> {
+  getVideo(id: string, fields?: string[]): Promise<Video> {
     const sql = `select ${buildFields(fields, this.videoFields)} from video where id = ?`;
     return queryOne(this.client, sql, [id], this.videoMap);
   }
-  getVideos(ids: string[], fields?: string[], noSnippet?: boolean): Promise<Video[]> {
+  getVideos(ids: string[], fields?: string[]): Promise<Video[]> {
     if (!ids || ids.length <= 0) {
       return Promise.resolve([]);
     } else {
@@ -107,16 +107,16 @@ export class CassandraVideoService implements VideoService {
       });
       const query1 = `select ${buildFields(fields, this.videoFields)} from video where id in (${queryQuestion.join()})`;
       return this.client.execute(query1, ids, options).then(result => {
-        const res : ListResult<PlaylistVideo> = {
+        const res: ListResult<PlaylistVideo> = {
           list: handleResults(result.rows as any, this.videoMap),
           total :  playlist.rows[0].videos.length,
         };
-        if(result.pageState) {
-          res.nextPageToken = result.pageState
+        if (result.pageState) {
+          res.nextPageToken = result.pageState;
         }
-        return res
+        return res;
       });
-    })
+    });
   }
   getChannelVideos(channelId: string, max: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<PlaylistVideo>> {
     max = getLimit(max);
@@ -170,56 +170,56 @@ export class CassandraVideoService implements VideoService {
     const options = getOption(nextPageToken, limit);
     const objQuery = buildVideoQuery(sm, 'video', 'video_index', fields, this.videoFields);
     return this.client.execute(objQuery, undefined, options ).then(result => {
-      const res : ListResult<Item> = {
+      const res: ListResult<Item> = {
         list: handleResults(result.rows as any, this.videoMap),
       };
-      if(result.pageState) {
-        res.nextPageToken = result.pageState
+      if (result.pageState) {
+        res.nextPageToken = result.pageState;
       }
-      return res
-    })
+      return res;
+    });
   }
   searchVideos(sm: ItemSM, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
     const limit = getLimit(max);
     const options = getOption(nextPageToken, limit);
     const objQuery = buildVideoQuery(sm, 'video', 'video_index', fields, this.videoFields);
     return this.client.execute(objQuery, undefined, options ).then(result => {
-      const res : ListResult<Item> = {
+      const res: ListResult<Item> = {
         list: handleResults(result.rows as any, this.videoMap),
       };
-      if(result.pageState) {
-        res.nextPageToken = result.pageState
+      if (result.pageState) {
+        res.nextPageToken = result.pageState;
       }
-      return res
-    })
+      return res;
+    });
   }
   searchPlaylists(sm: PlaylistSM, max?: number, nextPageToken?: string , fields?: string[]): Promise<ListResult<Playlist>> {
     max = getLimit(max);
     const options = getOption(nextPageToken, max);
     const objQuery = buildPlaylistQuery(sm, ' playlist', fields, this.playlistFields);
     return this.client.execute(objQuery, undefined, options ).then(result => {
-      const res : ListResult<Playlist> = {
+      const res: ListResult<Playlist> = {
         list: mapArray(result.rows as any, this.playlistMap),
       };
-      if(result.pageState) {
-        res.nextPageToken = result.pageState
+      if (result.pageState) {
+        res.nextPageToken = result.pageState;
       }
-      return res
-    })
+      return res;
+    });
   }
   searchChannels(sm: ChannelSM, max?: number, nextPageToken?: string , fields?: string[]): Promise<ListResult<Channel>> {
     max = getLimit(max);
     const options = getOption(nextPageToken, max);
     const objQuery = buildChannelQuery(sm, 'channel', fields, this.channelFields);
     return this.client.execute(objQuery, undefined, options ).then(result => {
-      const res : ListResult<Channel> = {
+      const res: ListResult<Channel> = {
         list: mapArray(result.rows as any, this.playlistMap),
       };
-      if(result.pageState) {
-        res.nextPageToken = result.pageState
+      if (result.pageState) {
+        res.nextPageToken = result.pageState;
       }
-      return res
-    })
+      return res;
+    });
   }
   getRelatedVideos(videoId: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
     max = getLimit(max);
@@ -235,42 +235,42 @@ export class CassandraVideoService implements VideoService {
         const queryObj = `{filter: [{should:${JSON.stringify(should)}} ${not.length > 0 ? `,{not:${JSON.stringify(not)}}` : ''}] ${sort.length > 0 ? `,sort: ${JSON.stringify(sort)}` : ''}}`;
         const sql = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
         return this.client.execute(sql, undefined, options ).then(result => {
-          const res : ListResult<Item> = {
+          const res: ListResult<Item> = {
             list: handleResults(result.rows as any, this.videoMap),
           };
-          if(result.pageState) {
-            res.nextPageToken = result.pageState
+          if (result.pageState) {
+            res.nextPageToken = result.pageState;
           }
-          return res
-        })
+          return res;
+        });
       }
     });
   }
   getPopularVideos(regionCode?: string, categoryId?: string, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
     max = getLimit(max);
     const options = getOption(nextPageToken, max);
-    const not = []
-    const query = []
+    const not = [];
+    const query1 = [];
     if (regionCode && regionCode.length > 0) {
-      not.push({type: 'contains', field: 'blockedregions', values: [regionCode]})
+      not.push({type: 'contains', field: 'blockedregions', values: [regionCode]});
     }
     if (categoryId && categoryId.length > 0) {
-      query.push({type: 'match', field: 'categoryId', values: categoryId})
+      query1.push({type: 'match', field: 'categoryId', values: categoryId});
     }
     const sort = [{field: `publishedat`, reverse: true}];
-    const queryObj = {filter:{ not }, query, sort};
-    if(not.length <= 0) { delete queryObj.filter;} 
-    if(query.length <= 0) { delete queryObj.filter;} 
-    const sql = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
-    return this.client.execute(sql, undefined, options ).then(result => {
-      const res : ListResult<Video> = {
+    const queryObj = {filter: { not }, query: query1, sort};
+    if (not.length <= 0) { delete queryObj.filter; }
+    if (query1.length <= 0) { delete queryObj.filter; }
+    const query2 = `select ${buildFields(fields, this.videoFields)} from video where expr(video_index, '${queryObj}')`;
+    return this.client.execute(query2, undefined, options ).then(result => {
+      const res: ListResult<Video> = {
         list: handleResults(result.rows as any, this.videoMap),
       };
-      if(result.pageState) {
-        res.nextPageToken = result.pageState
+      if (result.pageState) {
+        res.nextPageToken = result.pageState;
       }
-      return res
-    })
+      return res;
+    });
   }
 }
 export function getOption(nextPageToken: string, max?: number): QueryOptions {
@@ -307,20 +307,20 @@ export function buildPlaylistQuery(s: PlaylistSM, tableName: string, fields?: st
     must.push({type: 'range', field: 'publishedat', lower: s.publishedBefore.toISOString().replace('T', ' ')});
   }
   if (!isEmpty(s.channelId)) {
-    must.push({type: 'match', field: `channelid`, value: `${s.channelId}`})
+    must.push({type: 'match', field: `channelid`, value: `${s.channelId}`});
   }
   if (!isEmpty(s.channelType)) {
-    must.push({type: 'match', field: `channeltype`, value: `${s.channelType}`})
+    must.push({type: 'match', field: `channeltype`, value: `${s.channelType}`});
   }
   if (!isEmpty(s.regionCode)) {
-    must.push({type: 'match', field: `country`, value: `${s.regionCode}`})
+    must.push({type: 'match', field: `country`, value: `${s.regionCode}`});
 
   }
   if (!isEmpty(s.relevanceLanguage)) {
-    must.push({type: 'match', field: `relevancelanguage`, value: `${s.relevanceLanguage}`})
+    must.push({type: 'match', field: `relevancelanguage`, value: `${s.relevanceLanguage}`});
   }
 
-  if (!isEmpty(s.sort)){
+  if (!isEmpty(s.sort)) {
     sort.push({field: `${s.sort.toLowerCase()}`, reverse: true});
   }
   const a = {
@@ -331,9 +331,9 @@ export function buildPlaylistQuery(s: PlaylistSM, tableName: string, fields?: st
     query: {must},
     sort
   };
-  if (should.length === 0 && not.length === 0){
-    delete a.filter
-  }else{
+  if (should.length === 0 && not.length === 0) {
+    delete a.filter;
+  } else {
     if (should.length === 0) {
       delete a.filter.should;
     }
@@ -349,7 +349,7 @@ export function buildPlaylistQuery(s: PlaylistSM, tableName: string, fields?: st
   }
   const queryObj = JSON.stringify(a);
   const sql = `select ${buildFields(fields, mapFields)} from ${tableName} where expr(playlist_index,'${queryObj}')`;
-  return sql
+  return sql;
 }
 export function buildChannelQuery(s: ChannelSM, tableName: string, fields?: string[], mapFields?: string[]): string {
   const should = [];
@@ -376,22 +376,22 @@ export function buildChannelQuery(s: ChannelSM, tableName: string, fields?: stri
     must.push({type: 'range', field: 'publishedat', lower: s.publishedBefore.toISOString().replace('T', ' ')});
   }
   if (!isEmpty(s.channelId)) {
-    must.push({type: 'match', field: `id`, value: `${s.channelId}`})
+    must.push({type: 'match', field: `id`, value: `${s.channelId}`});
   }
   if (!isEmpty(s.channelType)) {
-    must.push({type: 'match', field: `channeltype`, value: `${s.channelType}`})
+    must.push({type: 'match', field: `channeltype`, value: `${s.channelType}`});
   }
   if (!isEmpty(s.topicId)) {
-    must.push({type: 'match', field: `topicid`, value: `${s.topicId}`})
+    must.push({type: 'match', field: `topicid`, value: `${s.topicId}`});
   }
   if (!isEmpty(s.regionCode)) {
-    must.push({type: 'match', field: `country`, value: `${s.regionCode}`})
+    must.push({type: 'match', field: `country`, value: `${s.regionCode}`});
 
   }
   if (!isEmpty(s.relevanceLanguage)) {
-    must.push({type: 'match', field: `relevancelanguage`, value: `${s.relevanceLanguage}`})
+    must.push({type: 'match', field: `relevancelanguage`, value: `${s.relevanceLanguage}`});
   }
-  if (!isEmpty(s.sort)){
+  if (!isEmpty(s.sort)) {
     sort.push({field: `${s.sort.toLowerCase()}`, reverse: true});
   }
   const a = {
@@ -402,9 +402,9 @@ export function buildChannelQuery(s: ChannelSM, tableName: string, fields?: stri
     query: {must},
     sort
   };
-  if (should.length === 0 && not.length === 0){
-    delete a.filter
-  }else{
+  if (should.length === 0 && not.length === 0) {
+    delete a.filter;
+  } else {
     if (should.length === 0) {
       delete a.filter.should;
     }
@@ -420,7 +420,7 @@ export function buildChannelQuery(s: ChannelSM, tableName: string, fields?: stri
   }
   const queryObj = JSON.stringify(a);
   const sql = `select ${buildFields(fields, mapFields)} from ${tableName} where expr(channel_index,'${queryObj}')`;
-  return sql
+  return sql;
 }
 export function buildVideoQuery(s: ItemSM , tableName: string, index: string, fields?: string[], mapFields?: string[]): string {
   const should = [];
@@ -464,7 +464,7 @@ export function buildVideoQuery(s: ItemSM , tableName: string, index: string, fi
   if (!isEmpty(s.regionCode)) {
     not.push({type: 'contains', field: 'blockedregions', values: [s.regionCode]});
   }
-  if (!isEmpty(s.sort)){
+  if (!isEmpty(s.sort)) {
     sort.push({field: `${s.sort.toLowerCase()}`, reverse: true});
   }
   const a = {
@@ -475,9 +475,9 @@ export function buildVideoQuery(s: ItemSM , tableName: string, index: string, fi
     query: must,
     sort
   };
-  if (should.length === 0 && not.length === 0){
-    delete a.filter
-  }else{
+  if (should.length === 0 && not.length === 0) {
+    delete a.filter;
+  } else {
     if (should.length === 0) {
       delete a.filter.should;
     }
@@ -493,5 +493,5 @@ export function buildVideoQuery(s: ItemSM , tableName: string, index: string, fi
   }
   const queryObj = JSON.stringify(a);
   const sql = `select ${buildFields(fields, mapFields)} from ${tableName} where expr(${index}, '${queryObj}')`;
-  return  sql
+  return  sql;
 }
