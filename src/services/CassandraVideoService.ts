@@ -130,8 +130,8 @@ export class CassandraVideoService implements VideoService {
         list: mapArray<PlaylistVideo>(result.rows as any, this.videoMap),
         nextPageToken: result.pageState,
       };
-      return res
-    })
+      return res;
+    });
   }
   getCagetories(regionCode: string): Promise<VideoCategory[]> {
     const query0 = `select * from category where id = ?`;
@@ -152,10 +152,10 @@ export class CassandraVideoService implements VideoService {
           };
           return this.client.batch([queries], { prepare: true }).then(() => {
             return categoryToSave;
-          })
+          });
         });
       }
-    })
+    });
   }
   search(sm: ItemSM, max?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
     const limit = getLimit(max);
