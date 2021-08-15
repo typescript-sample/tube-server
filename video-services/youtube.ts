@@ -154,29 +154,34 @@ export function fromYoutubePlaylist(res: YoutubeListResult<ListItem<string, Play
     return { list: [], total: 0, limit: 0 };
   }
   const list = res.items.filter(i => i.snippet).map(item => {
-    const snippet = item.snippet;
-    const thumbnail = snippet.thumbnails;
     const content = item.contentDetails;
-    const i: PlaylistVideo = {
-      title: snippet.title ? snippet.title : '',
-      description: snippet.description ? snippet.description : '',
-      localizedTitle: snippet.localized ? snippet.localized.title : '',
-      localizedDescription: snippet.localized ? snippet.localized.description : '',
-      channelId: snippet.channelId ? snippet.channelId : '',
-      channelTitle: snippet.channelTitle ? snippet.channelTitle : '',
-      id: content ? content.videoId : '',
-      publishedAt: content ? new Date(content.videoPublishedAt) : undefined,
-      playlistId: snippet.playlistId ? snippet.playlistId : '',
-      position: snippet.position ? snippet.position : 0,
-      videoOwnerChannelId: snippet.videoOwnerChannelId ? snippet.videoOwnerChannelId : '',
-      videoOwnerChannelTitle: snippet.videoOwnerChannelTitle ? snippet.videoOwnerChannelTitle : ''
-    };
-    if (!compress && thumbnail) {
-      i.thumbnail = thumbnail.default ? thumbnail.default.url : undefined;
-      i.mediumThumbnail = thumbnail.medium ? thumbnail.medium.url : undefined;
-      i.highThumbnail = thumbnail.high ? thumbnail.high.url : undefined;
-      i.standardThumbnail = thumbnail.standard ? thumbnail.standard.url : undefined;
-      i.maxresThumbnail = thumbnail.maxres ? thumbnail.maxres.url : undefined;
+    let i: PlaylistVideo;
+    if (compress) {
+      i = { id: content ? content.videoId : '' };
+    } else {
+      const snippet = item.snippet;
+      const thumbnail = snippet.thumbnails;
+      i = {
+        title: snippet.title ? snippet.title : '',
+        description: snippet.description ? snippet.description : '',
+        localizedTitle: snippet.localized ? snippet.localized.title : '',
+        localizedDescription: snippet.localized ? snippet.localized.description : '',
+        channelId: snippet.channelId ? snippet.channelId : '',
+        channelTitle: snippet.channelTitle ? snippet.channelTitle : '',
+        id: content ? content.videoId : '',
+        publishedAt: content ? new Date(content.videoPublishedAt) : undefined,
+        playlistId: snippet.playlistId ? snippet.playlistId : '',
+        position: snippet.position ? snippet.position : 0,
+        videoOwnerChannelId: snippet.videoOwnerChannelId ? snippet.videoOwnerChannelId : '',
+        videoOwnerChannelTitle: snippet.videoOwnerChannelTitle ? snippet.videoOwnerChannelTitle : ''
+      };
+      if (thumbnail) {
+        i.thumbnail = thumbnail.default ? thumbnail.default.url : undefined;
+        i.mediumThumbnail = thumbnail.medium ? thumbnail.medium.url : undefined;
+        i.highThumbnail = thumbnail.high ? thumbnail.high.url : undefined;
+        i.standardThumbnail = thumbnail.standard ? thumbnail.standard.url : undefined;
+        i.maxresThumbnail = thumbnail.maxres ? thumbnail.maxres.url : undefined;
+      }
     }
     return i;
   });
