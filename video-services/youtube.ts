@@ -48,6 +48,9 @@ export function calculateDuration(d: string): number {
 }
 
 export function fromYoutubeCategories(res: YoutubeListResult<ListItem<string, CategorySnippet, any>>): VideoCategory[] {
+  if (!res || !res.items || res.items.length === 0) {
+    return [];
+  }
   return res.items.filter(i => i.snippet).map(item => {
     const snippet = item.snippet;
     const i: VideoCategory = {
@@ -60,10 +63,12 @@ export function fromYoutubeCategories(res: YoutubeListResult<ListItem<string, Ca
   });
 }
 export function fromYoutubeChannels(res: YoutubeListResult<ListItem<string, ChannelSnippet, ChannelDetail>>): Channel[] {
+  if (!res || !res.items || res.items.length === 0) {
+    return [];
+  }
   return res.items.filter(i => i.snippet).map(item => {
     const snippet = item.snippet;
     const thumbnail = snippet.thumbnails;
-    
     const i: Channel = {
       id: item.id,
       title: snippet.title,
@@ -89,6 +94,9 @@ export function fromYoutubeChannels(res: YoutubeListResult<ListItem<string, Chan
   });
 }
 export function fromYoutubeSubscriptions(res: YoutubeListResult<ListItem<string, SubscriptionSnippet, ChannelDetail>>): Channel[] {
+  if (!res || !res.items || res.items.length === 0) {
+    return [];
+  }
   return res.items.filter(i => i.snippet).map(item => {
     const snippet = item.snippet;
     const thumbnail = snippet.thumbnails;
@@ -113,6 +121,9 @@ export function fromYoutubeSubscriptions(res: YoutubeListResult<ListItem<string,
   });
 }
 export function fromYoutubePlaylists(res: YoutubeListResult<ListItem<string, PlaylistSnippet, ListDetail>>): ListResult<Playlist> {
+  if (!res || !res.items || res.items.length === 0) {
+    return { list: [], total: 0, limit: 0 };
+  }
   const list = res.items.filter(i => i.snippet).map(item => {
     const snippet = item.snippet;
     const thumbnail = snippet.thumbnails;
@@ -138,7 +149,10 @@ export function fromYoutubePlaylists(res: YoutubeListResult<ListItem<string, Pla
   });
   return { list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken };
 }
-export function fromYoutubePlaylist(res: YoutubeListResult<ListItem<string, PlaylistVideoSnippet, VideoItemDetail>>): ListResult<PlaylistVideo> {
+export function fromYoutubePlaylist(res: YoutubeListResult<ListItem<string, PlaylistVideoSnippet, VideoItemDetail>>, compress?: boolean): ListResult<PlaylistVideo> {
+  if (!res || !res.items || res.items.length === 0) {
+    return { list: [], total: 0, limit: 0 };
+  }
   const list = res.items.filter(i => i.snippet).map(item => {
     const snippet = item.snippet;
     const thumbnail = snippet.thumbnails;
@@ -157,7 +171,7 @@ export function fromYoutubePlaylist(res: YoutubeListResult<ListItem<string, Play
       videoOwnerChannelId: snippet.videoOwnerChannelId ? snippet.videoOwnerChannelId : '',
       videoOwnerChannelTitle: snippet.videoOwnerChannelTitle ? snippet.videoOwnerChannelTitle : ''
     };
-    if (thumbnail) {
+    if (!compress && thumbnail) {
       i.thumbnail = thumbnail.default ? thumbnail.default.url : undefined;
       i.mediumThumbnail = thumbnail.medium ? thumbnail.medium.url : undefined;
       i.highThumbnail = thumbnail.high ? thumbnail.high.url : undefined;
@@ -168,7 +182,10 @@ export function fromYoutubePlaylist(res: YoutubeListResult<ListItem<string, Play
   });
   return { list, total: res.pageInfo.totalResults, limit: res.pageInfo.resultsPerPage, nextPageToken: res.nextPageToken };
 }
-export function fromYoutubeVideos(res: YoutubeListResult<ListItem<string, VideoSnippet, YoutubeVideoDetail>>): ListResult<Video> {
+export function fromYoutubeVideos(res: YoutubeListResult<ListItem<string, VideoSnippet, YoutubeVideoDetail>>, compress?: boolean): ListResult<Video> {
+  if (!res || !res.items || res.items.length === 0) {
+    return { list: [], total: 0, limit: 0 };
+  }
   const list = res.items.map(item => {
     const snippet = item.snippet;
     const content = item.contentDetails;
@@ -195,7 +212,7 @@ export function fromYoutubeVideos(res: YoutubeListResult<ListItem<string, VideoS
         licensedContent: content.licensedContent,
         projection: content.projection === 'rectangular' ? undefined : '3'
       };
-      if (thumbnail) {
+      if (!compress && thumbnail) {
         i.thumbnail = thumbnail.default ? thumbnail.default.url : undefined;
         i.mediumThumbnail = thumbnail.medium ? thumbnail.medium.url : undefined;
         i.highThumbnail = thumbnail.high ? thumbnail.high.url : undefined;

@@ -31,7 +31,7 @@ export class CategoryClient {
   }
 }
 export class YoutubeSyncClient implements SyncClient {
-  constructor(private key: string, private httpRequest: HttpRequest) {
+  constructor(private key: string, private httpRequest: HttpRequest, private compress?: boolean) {
     this.getChannels = this.getChannels.bind(this);
     this.getChannel = this.getChannel.bind(this);
     this.getChannelPlaylists = this.getChannelPlaylists.bind(this);
@@ -78,7 +78,7 @@ export class YoutubeSyncClient implements SyncClient {
     const pageToken = (nextPageToken ? `&pageToken=${nextPageToken}` : '');
     const url = `https://youtube.googleapis.com/youtube/v3/playlistItems?key=${this.key}&playlistId=${playlistId}&maxResults=${maxResults}${pageToken}&part=snippet,contentDetails`;
     return this.httpRequest.get<YoutubeListResult<ListItem<string, PlaylistVideoSnippet, VideoItemDetail>>>(url).then(res => {
-      const r = fromYoutubePlaylist(res);
+      const r = fromYoutubePlaylist(res, true);
       if (r.list) {
         r.list = r.list.filter(i => i.thumbnail);
       }
@@ -92,7 +92,7 @@ export class YoutubeSyncClient implements SyncClient {
     const strSnippet = 'snippet,';
     const url = `https://www.googleapis.com/youtube/v3/videos?key=${this.key}&part=${strSnippet}contentDetails&id=${ids.join(',')}`;
     return this.httpRequest.get<YoutubeListResult<ListItem<string, VideoSnippet, YoutubeVideoDetail>>>(url).then(res => {
-      const r = fromYoutubeVideos(res);
+      const r = fromYoutubeVideos(res, this.compress);
       if (!r || !r.list) {
         return [];
       }
@@ -301,7 +301,7 @@ export async function syncUploads(uploads: string, client: SyncClient, repo: Syn
   }
   return { count: success, all, timestamp: last };
 }
-export function saveVideos(newVideos: PlaylistVideo[], getVideos?: (ids: string[], fields?: string[], noSnippet?: boolean) => Promise<Video[]>, repo?: SyncRepository): Promise<number> {
+export function saveVideos(newVideos: PlaylistVideo[], getVideos?: (ids: string[], fields?: string[]) => Promise<Video[]>, repo?: SyncRepository): Promise<number> {
   if (!newVideos || newVideos.length === 0) {
     return Promise.resolve(0);
   } else {
