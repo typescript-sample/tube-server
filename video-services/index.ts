@@ -1,5 +1,5 @@
 import {CategorySnippet, Channel, ChannelDetail, ChannelSnippet, ChannelSubscriptions, ListDetail, ListItem, ListResult, Playlist, PlaylistSnippet, PlaylistVideo, PlaylistVideoSnippet, StringMap, SubscriptionSnippet, Thumbnail, Title, Video, VideoCategory, VideoItemDetail, VideoSnippet, YoutubeListResult, YoutubeVideoDetail} from './models';
-import {HttpRequest} from './service';
+import {HttpRequest, VideoService} from './service';
 import {ChannelSync, getNewVideos, notIn, SyncClient, SyncRepository, SyncService} from './sync';
 import {fromYoutubeCategories, fromYoutubeChannels, fromYoutubePlaylist, fromYoutubePlaylists, fromYoutubeSubscriptions, fromYoutubeVideos} from './youtube';
 export * from './metadata';
@@ -17,6 +17,20 @@ export function getLimit(limit?: number, d?: number): number {
     return d;
   }
   return 48;
+}
+export class SubscriptionsClient{
+  constructor(private syncService: SyncService, private videoService: VideoService){
+    this.getSubscriptions = this.getSubscriptions.bind(this);
+  }
+  getSubscriptions(channelId: string, fields?: string[]): Promise<Channel[]> {
+    return this.videoService.getSubscriptions(channelId).then(r => {
+      return this.syncService.syncChannels(r).then(() => {
+        return this.videoService.getChannels(r, fields).then(res => {
+          return res;
+        });
+      });
+    });
+  }
 }
 export class CategoryClient {
   constructor(private key: string, private httpRequest: HttpRequest) {
@@ -77,7 +91,7 @@ export class YoutubeSyncClient implements SyncClient {
     const maxResults = (max && max > 0 ? max : 50);
     const pageToken = (nextPageToken ? `&pageToken=${nextPageToken}` : '');
     const part = '&part=contentDetails'; // compress ? '&part=contentDetails' : '&part=snippet,contentDetails';
-    const url = `https://youtube.googleapis.com/youtube/v3/playlistItems?key=${this.key}&playlistId=${playlistId}&maxResults=${maxResults}${pageToken}${part}`;
+    const url = `https://youtube.googleapis.com/youtube/v3/playlistItems?key=${this.key}&id=${playlistId}&maxResults=${maxResults}${pageToken}${part}`;
     return this.httpRequest.get<YoutubeListResult<ListItem<string, PlaylistVideoSnippet, VideoItemDetail>>>(url).then(res => {
       const r = fromYoutubePlaylist(res, true);
       if (r.list) {
@@ -104,7 +118,7 @@ export class YoutubeSyncClient implements SyncClient {
 export class DefaultSyncService implements SyncService {
   constructor(private client: SyncClient, private repo: SyncRepository, private log?: (msg: any, ctx?: any) => void) {
     this.syncChannel = this.syncChannel.bind(this);
-    this.syncChannels = this.syncChannel.bind(this);
+    this.syncChannels = this.syncChannels.bind(this);
     this.syncPlaylist = this.syncPlaylist.bind(this);
     this.syncPlaylists = this.syncPlaylists.bind(this);
   }
@@ -144,11 +158,6 @@ export async function syncChannel(channelId: string, client: SyncClient, repo: S
       }
     });
     return res;
-  }).catch(err => {
-    if (log) {
-      log(err);
-    }
-    throw err;
   });
 }
 export function checkAndSyncUploads(channel: Channel, channelSync: ChannelSync, client: SyncClient, repo: SyncRepository): Promise<number> {
@@ -159,11 +168,11 @@ export function checkAndSyncUploads(channel: Channel, channelSync: ChannelSync, 
     const timestamp = channelSync ? channelSync.syncTime : undefined;
     const syncVideos = (!channelSync || (channelSync && channelSync.level && channelSync.level >= 2)) ? true : false;
     const syncCollection = (!channelSync || (channelSync && channelSync.level && channelSync.level >= 1)) ? true : false;
-    syncUploads(channel.uploads, client, repo, timestamp).then(r => {
+    return syncUploads(channel.uploads, client, repo, timestamp).then(r => {
       channel.lastUpload = r.timestamp;
       channel.count = r.count;
       channel.itemCount = r.all;
-      syncChannelPlaylists(channel.id, syncVideos, syncCollection, client, repo).then(res => {
+      return syncChannelPlaylists(channel.id, syncVideos, syncCollection, client, repo).then(res => {
         if (syncCollection) {
           channel.playlistCount = res.count;
           channel.playlistItemCount = res.all;

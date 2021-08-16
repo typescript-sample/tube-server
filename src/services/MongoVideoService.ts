@@ -1,6 +1,6 @@
 import { Collection, FilterQuery } from 'mongodb';
 import { buildProject, findAllWithMap, findOne, findWithMap, getMapField, isEmpty, StringMap, upsert } from 'mongodb-extension';
-import { CategoryCollection, Channel, ChannelSM, getLimit, Item, ItemSM, ListResult, Playlist, PlaylistCollection, PlaylistSM, PlaylistVideo, Video, VideoCategory, VideoService } from 'video-service';
+import { CategoryCollection, Channel, ChannelSM, getLimit, Item, ItemSM, ListResult, Playlist, PlaylistCollection, PlaylistSM, PlaylistVideo, Video, VideoCategory, VideoService } from '../../video-services';
 
 export class MongoVideoService implements VideoService {
   private readonly id = 'id';

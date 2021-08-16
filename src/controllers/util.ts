@@ -15,7 +15,7 @@ export function handleError(err: any, res: Response, lg?: (msg: string, ctx?: an
     lg(err as any);
     res.status(500).end('Internal Server Error');
   } else {
-    res.status(500).end(err);
+    res.status(500).end(JSON.stringify(err));
   }
 }
 export function queryRequiredParams(req: Request, res: Response, name: string, split?: string): string[] {

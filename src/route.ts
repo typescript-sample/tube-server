@@ -4,12 +4,13 @@ import { ApplicationContext } from './context';
 export function route(app: Application, ctx: ApplicationContext): void {
   const tube = ctx.tubeController;
   const sync = ctx.syncController;
+  const subs = ctx.subscriptionController;
 
   app.post('/tube/channels', sync.syncChannel);
   app.post('/tube/playlists', sync.syncPlaylist);
   
   app.get('/tube/category', tube.getCategories);
-  app.get('/tube/channels/subscriptions/:id', tube.getSubscriptions);
+  app.get('/tube/channels/subscriptions/:id', subs.getSubscriptions);
   app.get('/tube/channels/search', tube.searchChannels);
   app.get('/tube/channels/list', tube.getChannels);
   app.get('/tube/channels/:id', tube.getChannel);
