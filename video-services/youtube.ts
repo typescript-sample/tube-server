@@ -1,4 +1,4 @@
-import {CategorySnippet, Channel, ChannelDetail, ChannelSnippet, Item, ListDetail, ListItem, ListResult, Playlist, PlaylistSnippet, PlaylistVideo, PlaylistVideoSnippet, SearchId, SearchSnippet, StringMap, SubscriptionResource, SubscriptionSnippet, Video, VideoCategory, VideoItemDetail, VideoSnippet, YoutubeListResult, YoutubeVideoDetail} from './models';
+import {CategorySnippet, Channel, ChannelDetail, ChannelSnippet, ListDetail, ListItem, ListResult, Playlist, PlaylistSnippet, PlaylistVideo, PlaylistVideoSnippet, SubscriptionSnippet, Video, VideoCategory, VideoItemDetail, VideoSnippet, YoutubeListResult, YoutubeVideoDetail} from './models';
 export * from './models';
 export * from './comment';
 

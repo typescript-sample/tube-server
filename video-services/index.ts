@@ -1,4 +1,4 @@
-import {CategorySnippet, Channel, ChannelDetail, ChannelSnippet, ChannelSubscriptions, ListDetail, ListItem, ListResult, Playlist, PlaylistSnippet, PlaylistVideo, PlaylistVideoSnippet, StringMap, SubscriptionSnippet, Thumbnail, Title, Video, VideoCategory, VideoItemDetail, VideoSnippet, YoutubeListResult, YoutubeVideoDetail} from './models';
+import {CategorySnippet, Channel, ChannelDetail, ChannelSnippet, ChannelSubscriptions, ListDetail, ListItem, ListResult, Playlist, PlaylistSnippet, PlaylistVideo, PlaylistVideoSnippet, SubscriptionSnippet, Thumbnail, Video, VideoCategory, VideoItemDetail, VideoSnippet, YoutubeListResult, YoutubeVideoDetail} from './models';
 import {HttpRequest, VideoService} from './service';
 import {ChannelSync, getNewVideos, notIn, SyncClient, SyncRepository, SyncService} from './sync';
 import {fromYoutubeCategories, fromYoutubeChannels, fromYoutubePlaylist, fromYoutubePlaylists, fromYoutubeSubscriptions, fromYoutubeVideos} from './youtube';
@@ -18,8 +18,8 @@ export function getLimit(limit?: number, d?: number): number {
   }
   return 48;
 }
-export class SubscriptionsClient{
-  constructor(private syncService: SyncService, private videoService: VideoService){
+export class SubscriptionsClient {
+  constructor(private syncService: SyncService, private videoService: VideoService) {
     this.getSubscriptions = this.getSubscriptions.bind(this);
   }
   getSubscriptions(channelId: string, fields?: string[]): Promise<Channel[]> {
