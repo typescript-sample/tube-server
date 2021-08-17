@@ -18,20 +18,6 @@ export function getLimit(limit?: number, d?: number): number {
   }
   return 48;
 }
-export class SubscriptionsClient {
-  constructor(private syncService: SyncService, private videoService: VideoService) {
-    this.getSubscriptions = this.getSubscriptions.bind(this);
-  }
-  getSubscriptions(channelId: string, fields?: string[]): Promise<Channel[]> {
-    return this.videoService.getSubscriptions(channelId).then(r => {
-      return this.syncService.syncChannels(r).then(() => {
-        return this.videoService.getChannels(r, fields).then(res => {
-          return res;
-        });
-      });
-    });
-  }
-}
 export class CategoryClient {
   constructor(private key: string, private httpRequest: HttpRequest) {
     this.getCagetories = this.getCagetories.bind(this);

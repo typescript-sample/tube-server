@@ -4,7 +4,7 @@ import { Client } from 'cassandra-driver';
 import { Db } from 'mongodb';
 import { CassandraVideoService } from './services/CassandraVideoService';
 import { CassandraVideoRepository } from './sync/CassandraSyncRepository';
-import { CategoryClient, DefaultSyncService, SubscriptionsClient, SyncRepository, VideoService, YoutubeSyncClient } from '../video-services';
+import { CategoryClient, DefaultSyncService, SyncRepository, VideoService, YoutubeSyncClient } from '../video-services';
 import { ApplicationContext } from './context';
 import { SyncController } from './controllers/SyncController';
 import { TubeController } from './controllers/TubeController';
@@ -15,6 +15,7 @@ import { MongoVideoRepository } from './sync/MongoSyncRepository';
 import { PostgreVideoRepository } from './sync/PostgreSyncRepository';
 import { Pool } from 'pg';
 import { SubscriptionsController } from './controllers/SubscriptionsController';
+import { SubscriptionsClient } from './services/SubscriptionsService';
 
 export function createContext(key?: string, db?: Db): ApplicationContext {
   const httpRequest = new HttpRequest(axios);
