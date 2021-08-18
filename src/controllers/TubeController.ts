@@ -21,22 +21,12 @@ export class TubeController {
     this.searchChannels = this.searchChannels.bind(this);
     this.getRelatedVideos = this.getRelatedVideos.bind(this);
     this.getPopularVideos = this.getPopularVideos.bind(this);
-    this.getSubscriptions = this.getSubscriptions.bind(this);
   }
   getCategories(req: Request, res: Response) {
     const regionCode = queryParam(req, res, 'regionCode');
     if (regionCode) {
       this.videoService
         .getCagetories(regionCode)
-        .then(results => res.status(200).json(results))
-        .catch(err => handleError(err, res, this.log));
-    }
-  }
-  async getSubscriptions(req: Request, res: Response) {
-    const channelId = param(req, res, 'id');
-    if (channelId) {
-      this.videoService
-        .getSubscriptions(channelId)
         .then(results => res.status(200).json(results))
         .catch(err => handleError(err, res, this.log));
     }

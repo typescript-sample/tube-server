@@ -259,7 +259,7 @@ export interface CategorySnippet {
 }
 export interface ChannelSubscriptions {
   id: string;
-  data: string[];
+  data: Channel[]|string[];
 }
 export interface SubscriptionSnippet extends Title {
   title: string;

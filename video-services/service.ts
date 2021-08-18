@@ -23,7 +23,6 @@ export interface VideoService {
   searchVideos?(sm: ItemSM, max?: number, nextPageToken?: string | number, fields?: string[]): Promise<ListResult<Item>>;
   searchPlaylists?(sm: PlaylistSM, max?: number, nextPageToken?: string | number, fields?: string[]): Promise<ListResult<Playlist>>;
   searchChannels?(sm: ChannelSM, max?: number, nextPageToken?: string | number, fields?: string[]): Promise<ListResult<Channel>>;
-  getSubscriptions?(channelId: string): Promise<string[]>;
   /**
    * @param videoId
    * @param order relevance, time (default)

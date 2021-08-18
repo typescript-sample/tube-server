@@ -18,6 +18,14 @@ export function getLimit(limit?: number, d?: number): number {
   }
   return 48;
 }
+export class SubscriptionsClient {
+  constructor(private key: string, private httpRequest: HttpRequest) {
+    this.getSubscriptions = this.getSubscriptions.bind(this);
+  }
+  getSubscriptions(channelId: string): Promise<Channel[]> {
+    return getSubcriptionsFromYoutube(this.httpRequest, this.key, channelId)
+  }
+}
 export class CategoryClient {
   constructor(private key: string, private httpRequest: HttpRequest) {
     this.getCagetories = this.getCagetories.bind(this);
@@ -45,7 +53,7 @@ export class YoutubeSyncClient implements SyncClient {
     const url = `https://www.googleapis.com/youtube/v3/channels?key=${this.key}&id=${ids.join(',')}&part=snippet,contentDetails`;
     return this.httpRequest.get<YoutubeListResult<ListItem<string, ChannelSnippet, ChannelDetail>>>(url).then(res => formatThumbnail(fromYoutubeChannels(res)));
   }
-  getSubscriptions(channelId: string): Promise<ChannelSubscriptions> {
+  getSubscriptions(channelId: string): Promise<Channel[]> {
     return getSubcriptionsFromYoutube(this.httpRequest, this.key, channelId);
   }
   getChannel(id: string): Promise<Channel> {
@@ -167,7 +175,9 @@ export function checkAndSyncUploads(channel: Channel, channelSync: ChannelSync, 
         }
         return client.getSubscriptions(channel.id).then(sub => {
           if (sub) {
-            channel.channels = sub.data;
+            channel.channels = sub.map(item =>{
+              return item.id;
+            });
           }
           return repo.saveChannel(channel).then(c => {
             return repo.saveChannelSync({ id: channel.id, syncTime: date, uploads: channel.uploads });
@@ -354,8 +364,8 @@ export function getSubcriptions(httpRequest: HttpRequest, key: string, channelId
     return r;
   });
 }
-export async function getSubcriptionsFromYoutube(httpRequest: HttpRequest, key: string, channelId: string): Promise<ChannelSubscriptions> {
-  const channelIds: string[] = [];
+export async function getSubcriptionsFromYoutube(httpRequest: HttpRequest, key: string, channelId: string): Promise<Channel[]> {
+  const channels: Channel[] = [];
   let nextPageToken = '';
   let count = 0;
   let allChannelCount = 0;
@@ -364,23 +374,23 @@ export async function getSubcriptionsFromYoutube(httpRequest: HttpRequest, key: 
       const subscriptions = await getSubcriptions(httpRequest, key, channelId, undefined, 2, nextPageToken);
       count = count + subscriptions.list.length;
       for (const p of subscriptions.list) {
-        channelIds.push(p.id);
+        channels.push(p);
         allChannelCount = allChannelCount + p.count;
       }
       nextPageToken = subscriptions.nextPageToken;
     }
     const channelSubscriptions: ChannelSubscriptions = {
       id: channelId,
-      data: channelIds
+      data: channels
     };
-    return channelSubscriptions;
+    return channelSubscriptions.data as Channel[];
   } catch (err) {
     if (err) {
       const channelSubscriptions: ChannelSubscriptions = {
         id: channelId,
         data: []
       };
-      return channelSubscriptions;
+      return channelSubscriptions.data as Channel[];
     }
   }
 }

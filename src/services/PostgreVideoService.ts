@@ -130,11 +130,6 @@ export class PostgreTubeService implements VideoService {
       }
     });
   }
-  getSubscriptions(channelId: string): Promise<string[]> {
-    const q = `select channels from channel where id = $1`;
-    return queryOne<Channel>(this.client, q, [channelId])
-      .then(result => result.channels as any);
-  }
   search(itemSM: ItemSM, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Item>> {
     limit = getLimit(limit);
     const skip = getSkip(nextPageToken);

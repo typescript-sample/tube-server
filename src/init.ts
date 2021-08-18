@@ -4,7 +4,7 @@ import { Client } from 'cassandra-driver';
 import { Db } from 'mongodb';
 import { CassandraVideoService } from './services/CassandraVideoService';
 import { CassandraVideoRepository } from './sync/CassandraSyncRepository';
-import { CategoryClient, DefaultSyncService, SyncRepository, VideoService, YoutubeSyncClient } from '../video-services';
+import { CategoryClient, DefaultSyncService, SubscriptionsClient, SyncRepository, VideoService, YoutubeSyncClient } from '../video-services';
 import { ApplicationContext } from './context';
 import { SyncController } from './controllers/SyncController';
 import { TubeController } from './controllers/TubeController';
@@ -15,7 +15,6 @@ import { MongoVideoRepository } from './sync/MongoSyncRepository';
 import { PostgreVideoRepository } from './sync/PostgreSyncRepository';
 import { Pool } from 'pg';
 import { SubscriptionsController } from './controllers/SubscriptionsController';
-import { SubscriptionsClient } from './services/SubscriptionsService';
 
 export function createContext(key?: string, db?: Db): ApplicationContext {
   const httpRequest = new HttpRequest(axios);
@@ -48,8 +47,8 @@ export function createContext(key?: string, db?: Db): ApplicationContext {
   const syncService = new DefaultSyncService(client, videoRepository);
   const syncController = new SyncController(syncService);
   const videoController = new TubeController(tubeService, log, true);
-  const subscriptionsClient = new SubscriptionsClient(syncService, tubeService);
-  const subscriptionController = new SubscriptionsController(subscriptionsClient.getSubscriptions, log);
+  const subscriptionsClient = new SubscriptionsClient(key, httpRequest);
+  const subscriptionController = new SubscriptionsController(subscriptionsClient.getSubscriptions ,log);
   const ctx: ApplicationContext = { syncController, tubeController: videoController, subscriptionController };
   return ctx;
 }

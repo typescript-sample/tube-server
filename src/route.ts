@@ -7,6 +7,7 @@ export function route(app: Application, ctx: ApplicationContext): void {
   const subs = ctx.subscriptionController;
 
   app.post('/tube/channels', sync.syncChannel);
+  app.post('/tube/channelss', sync.syncChannels);
   app.post('/tube/playlists', sync.syncPlaylist);
   
   app.get('/tube/category', tube.getCategories);
