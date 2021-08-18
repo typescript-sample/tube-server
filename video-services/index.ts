@@ -84,10 +84,10 @@ export class YoutubeSyncClient implements SyncClient {
   getPlaylistVideos(playlistId: string, max?: number, nextPageToken?: string): Promise<ListResult<PlaylistVideo>> {
     const maxResults = (max && max > 0 ? max : 50);
     const pageToken = (nextPageToken ? `&pageToken=${nextPageToken}` : '');
-    const part = '&part=contentDetails'; // compress ? '&part=contentDetails' : '&part=snippet,contentDetails';
-    const url = `https://youtube.googleapis.com/youtube/v3/playlistItems?key=${this.key}&id=${playlistId}&maxResults=${maxResults}${pageToken}${part}`;
+    const part = '&part=snippet,contentDetails'; // compress ? '&part=contentDetails' : '&part=snippet,contentDetails';
+    const url = `https://youtube.googleapis.com/youtube/v3/playlistItems?key=${this.key}&playlistId=${playlistId}&maxResults=${maxResults}${pageToken}${part}`;
     return this.httpRequest.get<YoutubeListResult<ListItem<string, PlaylistVideoSnippet, VideoItemDetail>>>(url).then(res => {
-      const r = fromYoutubePlaylist(res, true);
+      const r = fromYoutubePlaylist(res);
       if (r.list) {
         r.list = r.list.filter(i => i.thumbnail);
       }

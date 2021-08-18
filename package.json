@@ -21,7 +21,8 @@
     "mongodb": "^3.6.10",
     "mongodb-extension": "^0.1.4",
     "pg": "^8.6.0",
-    "postgre": "^0.1.5"
+    "postgre": "^0.1.6",
+    "video-service": "^0.7.3"
   },
   "devDependencies": {
     "@types/express": "^4.17.13",

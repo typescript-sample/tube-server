@@ -19,7 +19,6 @@ export class SyncController {
       }).catch(err => handleError(err, res, this.log));
   }
   async syncChannels(req: Request, res: Response) {
-    const { channelIds } = req.body;
     if (!Array.isArray(req.body)) {
       res.status(400).json('body must be an array').end();
     } else if (req.body.length === 0) {
@@ -44,7 +43,7 @@ export class SyncController {
       if (ids.length === 0) {
         res.status(400).json('array is not valid').end();
       } else {
-        this.service.syncChannels(channelIds).then(r => {
+        this.service.syncChannels(ids).then(r => {
           if (r < 0) {
             res.status(200).json('Invalid channel to sync').end();
           } else {

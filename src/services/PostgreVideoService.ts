@@ -208,25 +208,24 @@ export class PostgreTubeService implements VideoService {
   getPopularVideos(regionCode: string, videoCategoryId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
     limit = getLimit(limit);
     const skip = getSkip(nextPageToken);
-    const q = `select ${buildFields(fields, this.videoFields)} from video order by publishedAt desc limit ${limit} offset ${skip}`;
-    return query<Video>(this.client, q, [], this.videoMap ).then(list => {
+    let q = `select ${buildFields(fields, this.videoFields)} from video`;
+    let condition = [];
+    let args = []
+    let i = 0;
+    if(regionCode){
+      condition.push(`(blockedRegions is null or $${++i} != all(blockedRegions))`);
+      args.push(regionCode);
+    }
+    if(videoCategoryId){
+      condition.push(`(categoryId = $${++i})`);
+      args.push(videoCategoryId);
+    }
+    if(condition && condition.length > 0){
+      q += ` where ${condition.join(' and ')}`
+    }
+    q += ` order by publishedAt desc limit ${limit} offset ${skip}`;
+    return query<Video>(this.client, q, args, this.videoMap ).then(list => {
       return { list, nextPageToken: getNextPageToken(list, limit, skip) };
-    });
-  }
-  getPopularVideosByCategory(categoryId: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
-    limit = getLimit(limit);
-    const skip = getSkip(nextPageToken);
-    const q = `select ${buildFields(fields, this.videoFields)} from video where categoryId = $1 order by publishedAt desc limit ${limit} offset ${skip}`;
-    return query<Video>(this.client, q, [categoryId], this.videoMap ).then(list => {
-      return { list, nextPageToken: getNextPageToken(list, limit, skip) };
-    });
-  }
-  getPopularVideosByRegion(regionCode: string, limit?: number, nextPageToken?: string, fields?: string[]): Promise<ListResult<Video>> {
-    limit = getLimit(limit);
-    const skip = getSkip(nextPageToken);
-    const q = `select ${buildFields(fields, this.videoFields)} from where video (blockedRegions is null or $1 != all(blockedRegions)) order by publishedAt desc limit ${limit} offset ${skip}`;
-    return query<Video>(this.client, q, [regionCode], this.videoMap ).then(list => {
-      return { list, nextPageToken: getNextPageToken(list, limit, skip)};
     });
   }
 }
