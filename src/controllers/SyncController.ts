@@ -20,13 +20,39 @@ export class SyncController {
   }
   async syncChannels(req: Request, res: Response) {
     const { channelIds } = req.body;
-    this.service.syncChannels(channelIds).then(r => {
-        if (r < 0) {
-          res.status(200).json('Invalid channel to sync').end();
-        } else {
-          res.status(200).json(`Sync successfully ${r} records`).end();
+    if (!Array.isArray(req.body)) {
+      res.status(400).json('body must be an array').end();
+    } else if (req.body.length === 0) {
+      res.status(400).json('array cannot be empty').end();
+    } else {
+      const ids: string[] = [];
+      for (const obj of req.body) {
+        if (typeof obj === 'string') {
+          if (obj.length > 0) {
+            ids.push(obj);
+          }
+        } else if (typeof obj === 'object') {
+          let id = obj['channelId'];
+          if (!id || id.length === 0) {
+            id = obj['id'];
+          }
+          if (id && id.length > 0) {
+            ids.push(id);
+          }
         }
-      }).catch(err => handleError(err, res, this.log));
+      }
+      if (ids.length === 0) {
+        res.status(400).json('array is not valid').end();
+      } else {
+        this.service.syncChannels(channelIds).then(r => {
+          if (r < 0) {
+            res.status(200).json('Invalid channel to sync').end();
+          } else {
+            res.status(200).json(`Sync successfully ${r} records`).end();
+          }
+        }).catch(err => handleError(err, res, this.log));
+      }
+    }
   }
   async syncPlaylist(req: Request, res: Response) {
     const { playlistId, level } = req.body;
