@@ -1,6 +1,6 @@
 import { params, query, queryOne, save, saveBatch } from 'cassandra-core';
 import { ArrayOrObject, Client, QueryOptions, types } from 'cassandra-driver';
-import { Channel, channelModel, ChannelSync, channelSyncModel, Playlist, PlaylistCollection, playlistModel, playlistVideoModel, SyncRepository, Video, videoModel } from '../../video-services';
+import { Channel, channelModel, ChannelSync, channelSyncModel, Playlist, PlaylistCollection, playlistModel, playlistVideoModel, SyncRepository, Video, videoModel } from 'video-service';
 
 export interface Statement {
   query: string;

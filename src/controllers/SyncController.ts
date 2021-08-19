@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { SyncService } from '../../video-services';
+import { SyncService } from 'video-service';
 import { handleError } from './util';
 
 export class SyncController {

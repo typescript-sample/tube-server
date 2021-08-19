@@ -4,7 +4,7 @@ import { Client } from 'cassandra-driver';
 import { Db } from 'mongodb';
 import { CassandraVideoService } from './services/CassandraVideoService';
 import { CassandraVideoRepository } from './sync/CassandraSyncRepository';
-import { CategoryClient, DefaultSyncService, SubscriptionsClient, SyncRepository, VideoService, YoutubeSyncClient } from '../video-services';
+import { CategoryClient, DefaultSyncService, SubscriptionsClient, SyncRepository, VideoService, YoutubeSyncClient } from 'video-service';
 import { ApplicationContext } from './context';
 import { SyncController } from './controllers/SyncController';
 import { TubeController } from './controllers/TubeController';

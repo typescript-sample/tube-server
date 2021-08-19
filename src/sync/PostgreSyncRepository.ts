@@ -1,6 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import { params, query, queryOne, save, saveBatchWithClient } from 'postgre';
-import { Channel, channelModel, ChannelSync, channelSyncModel, Playlist, PlaylistCollection, playlistModel, playlistVideoModel, SyncRepository, Video, videoModel } from '../../video-services';
+import { Channel, channelModel, ChannelSync, channelSyncModel, Playlist, PlaylistCollection, playlistModel, playlistVideoModel, SyncRepository, Video, videoModel } from 'video-service';
 
 export class PostgreVideoRepository implements SyncRepository {
   protected client: PoolClient;

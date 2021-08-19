@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Channel } from '../../video-services';
+import { Channel } from 'video-service';
 import { handleError, param, queryParams } from './util';
 
 export class SubscriptionsController {

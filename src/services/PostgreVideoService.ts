@@ -1,6 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import { buildFields, exec, getMapField, isEmpty, metadata, params, query, queryOne, Statement } from 'postgre';
-import { Channel, channelModel, ChannelSM, getLimit, Item, ItemSM, ListResult, Playlist, playlistModel, PlaylistSM, PlaylistVideo, StringMap, Video, VideoCategory, videoModel, VideoService } from '../../video-services';
+import { Channel, channelModel, ChannelSM, getLimit, Item, ItemSM, ListResult, Playlist, playlistModel, PlaylistSM, PlaylistVideo, StringMap, Video, VideoCategory, videoModel, VideoService } from 'video-service';
 
 export interface CategoryCollection {
   id: string;

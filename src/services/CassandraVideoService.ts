@@ -1,6 +1,6 @@
 import { buildFields, handleResults, isEmpty, mapArray, metadata, params, query, queryOne, Statement } from 'cassandra-core';
 import { Client , QueryOptions } from 'cassandra-driver';
-import { CategoryClient, Channel, channelModel, ChannelSM, getLimit, Item, ItemSM, ListResult, Playlist, playlistModel, PlaylistSM, PlaylistVideo, StringMap, Video, VideoCategory, videoModel, VideoService } from '../../video-services';
+import { CategoryClient, Channel, channelModel, ChannelSM, getLimit, Item, ItemSM, ListResult, Playlist, playlistModel, PlaylistSM, PlaylistVideo, StringMap, Video, VideoCategory, videoModel, VideoService } from 'video-service';
 
 export interface CategoryCollection {
   id: string;
