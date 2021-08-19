@@ -153,7 +153,7 @@ export function fromYoutubePlaylist(res: YoutubeListResult<ListItem<string, Play
   if (!res || !res.items || res.items.length === 0) {
     return { list: [], total: 0, limit: 0 };
   }
-  const list = res.items.filter(i => i.snippet).map(item => {
+  const list = res.items.filter(i => i.contentDetails).map(item => {
     const content = item.contentDetails;
     let i: PlaylistVideo;
     if (compress) {
