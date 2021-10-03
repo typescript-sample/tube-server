@@ -209,19 +209,19 @@ export class PostgreTubeService implements VideoService {
     limit = getLimit(limit);
     const skip = getSkip(nextPageToken);
     let q = `select ${buildFields(fields, this.videoFields)} from video`;
-    let condition = [];
-    let args = []
+    const condition = [];
+    const args = [];
     let i = 0;
-    if(regionCode){
+    if (regionCode) {
       condition.push(`(blockedRegions is null or $${++i} != all(blockedRegions))`);
       args.push(regionCode);
     }
-    if(videoCategoryId){
+    if (videoCategoryId) {
       condition.push(`(categoryId = $${++i})`);
       args.push(videoCategoryId);
     }
-    if(condition && condition.length > 0){
-      q += ` where ${condition.join(' and ')}`
+    if (condition && condition.length > 0) {
+      q += ` where ${condition.join(' and ')}`;
     }
     q += ` order by publishedAt desc limit ${limit} offset ${skip}`;
     return query<Video>(this.client, q, args, this.videoMap ).then(list => {

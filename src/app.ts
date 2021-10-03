@@ -1,4 +1,5 @@
 import { json } from 'body-parser';
+import { ArrayOrObject, auth, Client, QueryOptions, types } from 'cassandra-driver';
 import dotenv from 'dotenv';
 import express, { Request, Response } from 'express';
 import http from 'http';
@@ -6,7 +7,6 @@ import { Db } from 'mongodb';
 import { connectToDb } from 'mongodb-extension';
 import { createContext } from './init';
 import { route } from './route';
-import { Client,auth, QueryOptions, types, ArrayOrObject } from "cassandra-driver";
 
 
 dotenv.config();

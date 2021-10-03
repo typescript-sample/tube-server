@@ -2,19 +2,19 @@ import axios from 'axios';
 import { HttpRequest } from 'axios-core';
 import { Client } from 'cassandra-driver';
 import { Db } from 'mongodb';
-import { CassandraVideoService } from './services/CassandraVideoService';
-import { CassandraVideoRepository } from './sync/CassandraSyncRepository';
+import { Pool } from 'pg';
 import { CategoryClient, DefaultSyncService, SubscriptionsClient, SyncRepository, VideoService, YoutubeSyncClient } from 'video-service';
 import { ApplicationContext } from './context';
+import { SubscriptionsController } from './controllers/SubscriptionsController';
 import { SyncController } from './controllers/SyncController';
 import { TubeController } from './controllers/TubeController';
 import { log } from './controllers/util';
+import { CassandraVideoService } from './services/CassandraVideoService';
 import { MongoVideoService } from './services/MongoVideoService';
 import { PostgreTubeService } from './services/PostgreVideoService';
+import { CassandraVideoRepository } from './sync/CassandraSyncRepository';
 import { MongoVideoRepository } from './sync/MongoSyncRepository';
 import { PostgreVideoRepository } from './sync/PostgreSyncRepository';
-import { Pool } from 'pg';
-import { SubscriptionsController } from './controllers/SubscriptionsController';
 
 export function createContext(key?: string, db?: Db): ApplicationContext {
   const httpRequest = new HttpRequest(axios);
@@ -48,7 +48,7 @@ export function createContext(key?: string, db?: Db): ApplicationContext {
   const syncController = new SyncController(syncService);
   const videoController = new TubeController(tubeService, log, true);
   const subscriptionsClient = new SubscriptionsClient(key, httpRequest);
-  const subscriptionController = new SubscriptionsController(subscriptionsClient.getSubscriptions ,log);
+  const subscriptionController = new SubscriptionsController(subscriptionsClient.getSubscriptions, log);
   const ctx: ApplicationContext = { syncController, tubeController: videoController, subscriptionController };
   return ctx;
 }
